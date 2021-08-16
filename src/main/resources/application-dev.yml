@@ -1,0 +1,53 @@
+
+spring:
+  datasource:
+    url: jdbc:mysql://175.102.15.229:3306/ring-survey?characterEncoding=utf-8&serverTimezone=GMT%2B8&allowMultiQueries=true&useSSL=false
+    username: root
+    password: monetware
+
+fileUrl:
+  upload: D:/ringsurvey/files
+  qnaire: D:/ringsurvey/questionnaires
+
+#电话调查设备配置的url
+cati:
+  device:
+    url: http://192.168.0.113:80
+  recording: D:/pbxrecord/pbxrecord/000EA92E0AAE
+
+outurl:
+  authGetBalanceUrl: "http://175.102.15.229:18900/uums/wallet/get"
+  authCreateOrderUrl: "http://175.102.15.229:18900/uums/wallet/create/order"
+  authPayOrderUrl: "http://175.102.15.229:18900/uums/wallet/addBalance"
+  authGetConfigUrl: "http://175.102.15.229:18900/uums/config/get"
+##本地uums
+#  authGetBalanceUrl: "http://localhost:8065/auth/wallet/get"
+#  authCreateOrderUrl: "http://localhost:8065/auth/wallet/create/order"
+#  authPayOrderUrl: "http://localhost:8065/auth/wallet/addBalance"
+#  authGetConfigUrl: "http://localhost:8065/auth/config/get"
+
+auth:
+  redis:
+    host: 175.102.15.229
+
+##resource server 相关配置
+security:
+  oauth2:
+    client:
+      client-id: monetware
+      client-secret: monetware2019.@sh.com
+      user-authorization-uri: http://175.102.15.229:18900/uums/oauth/authorize
+      grant-type: password
+      scope: all
+      access-token-uri: http://175.102.15.229:18900/uums/oauth/token
+
+    authorization:
+      check-token-access: http://175.102.15.229:18900/uums/oauth/check_token
+
+    #配置check-token的url地址；
+    resource:
+      token-info-uri: http://175.102.15.229:18900/uums/oauth/check_token
+      #配置user_info的url地址
+      user-info-uri: http://175.102.15.229:18900/uums/user/info
+      #如果上面两个都配置了，更倾向于用哪个
+      prefer-token-info: true

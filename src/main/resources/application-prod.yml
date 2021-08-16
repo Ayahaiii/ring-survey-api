@@ -1,0 +1,42 @@
+
+spring:
+  datasource:
+    url: jdbc:mysql://rm-uf6x8t115nb94hrak.mysql.rds.aliyuncs.com:3306/ringsurvey?characterEncoding=utf-8&serverTimezone=GMT%2B8&allowMultiQueries=true&useSSL=false
+    username: ringdata_web
+    password: ringdata2019@sh
+
+fileUrl:
+  upload: /Users/monetware/Desktop/ringsurvey/files
+  qnaire: /Users/monetware/Desktop/ringsurvey/questionnaires
+
+outurl:
+  authGetBalanceUrl: "https://i.ringdata.com/uums/wallet/get"
+  authCreateOrderUrl: "https://i.ringdata.com/uums/wallet/create/order"
+  authPayOrderUrl: "https://i.ringdata.com/uums/wallet/addBalance"
+  authGetConfigUrl: "https://i.ringdata.com/uums/config/get"
+
+auth:
+  redis:
+    host: 172.19.73.17
+
+##resource server 相关配置
+security:
+  oauth2:
+    client:
+      client-id: monetware
+      client-secret: monetware2019.@sh.com
+      user-authorization-uri: http://i.ringdata.com/uums/oauth/authorize
+      grant-type: password
+      scope: all
+      access-token-uri: http://i.ringdata.com/uums/oauth/token
+
+    authorization:
+      check-token-access: http://i.ringdata.com/uums/oauth/check_token
+
+    #配置check-token的url地址；
+    resource:
+      token-info-uri: http://i.ringdata.com/uums/oauth/check_token
+      #配置user_info的url地址
+      user-info-uri: http://i.ringdata.com/uums/user/info
+      #如果上面两个都配置了，更倾向于用哪个
+      prefer-token-info: true

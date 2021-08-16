@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectModuleQuestionnaireDao">
+
+    <!-- 获取已使用编号 -->
+    <select id="getUsedModuleCode" resultType="java.lang.String">
+        select code from rs_project_module
+        where is_delete = 0
+        and project_id = #{projectId}
+    </select>
+
+    <!-- 多问卷模块列表 -->
+    <select id="getProjectModuleQuestionnaireList" resultType="com.monetware.ringsurvey.business.pojo.dto.qnaire.ProjectModuleQuestionnaireListDTO">
+        SELECT
+        pm.id,
+        pmg.`name` groupName,
+        pm.`code`,
+        pm.`name`,
+        pm.max_version maxVersion,
+        pm.type,
+        pq.id qnaireId,
+        pq.question_num questionNum,
+        pq.page_num pageNum,
+        pm.last_modify_user userId,
+        tu.user_name updateUser,
+        pm.last_modify_time updateTime,
+        pm.`status`,
+        pm.edit_flag editFlag,
+        pm.edit_content editContent,
+        (SELECT COUNT(1) FROM rs_project_response_${projectId} WHERE questionnaire_id = pq.id AND response_type = 1) answerNum,
+        pm.module_dependency moduleDependency,
+        pm.sample_dependency sampleDependency,
+        pm.quota_max quotaMax,
+        pm.quota_min quotaMin,
+        pm.is_allowed_manual_add manualAdd
+        FROM rs_project_module pm
+        LEFT JOIN rs_project_module_group pmg ON pm.group_id = pmg.id
+        LEFT JOIN rs_project_questionnaire pq ON pm.id = pq.module_id AND pm.max_version = pq.version AND pq.is_delete = 0
+        LEFT JOIN rs_project_team_user tu ON pm.last_modify_user = tu.user_id AND tu.project_id = #{projectId}
+        WHERE pm.is_delete = 0
+        and pm.project_id = #{projectId}
+        ORDER BY pm.`code`
+    </select>
+
+
+    <!-- 问卷模块通用查询列表 -->
+    <select id="getProjectModuleQuestionList"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.qnaire.ProjectModuleQuestionListDTO">
+        SELECT
+        rpm.id,
+        rpm.`name`,
+        rpq.id questionnaireId,
+        rpq.xml_content xmlContent,
+        rpq.version
+        FROM rs_project_module rpm
+        LEFT JOIN rs_project_questionnaire rpq ON (rpm.id = rpq.module_id AND rpm.project_id = rpq.project_id)
+        WHERE 1 = 1 AND rpm.project_id = #{projectId}
+        AND rpm.is_delete = 0
+        AND rpq.is_delete = 0
+    </select>
+
+    <!-- 问卷历史列表 -->
+    <select id="getProjectModuleHistoryList" parameterType="com.monetware.ringsurvey.business.pojo.vo.qnaire.QnaireSearchVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.qnaire.ProjectModuleHistoryDTO">
+        SELECT
+            rpm.id moduleId,
+            rpm.`code`,
+            rpq.`name`,
+            rpq.id questionnaireId,
+            rpq.question_num questionNum,
+            rpq.page_num pageNum,
+            rpq.version,
+            rpm.create_user createUser,
+            ru.`name` createUserStr,
+            rpm.create_time createTime,
+            rpm.last_modify_user updateUser,
+            ru_update.`name` updateUserStr,
+            rpq.last_modify_time updateTime,
+            rpq.remark,
+        (SELECT COUNT(1) FROM rs_project_response_${projectId} WHERE questionnaire_id = rpq.id AND response_type = 1) responseCount
+        FROM rs_project_module rpm
+        LEFT JOIN rs_project_questionnaire rpq
+                ON (rpm.id = rpq.module_id AND rpm.project_id = rpq.project_id)
+        LEFT JOIN rs_user ru ON rpm.create_user = ru.id
+        LEFT JOIN rs_user ru_update ON rpm.last_modify_user = ru_update.id
+        WHERE 1 = 1 AND rpq.version != rpm.max_version AND rpm.is_delete = 0
+        AND rpm.project_id = #{projectId}
+        <if test="keyword != null and keyword !=''">
+            AND rpm.`name` LIKE CONCAT("%", #{keyword},"%")
+        </if>
+        ORDER BY rpm.`code`, rpq.version desc
+    </select>
+
+    <!-- 问卷选择下拉列表 -->
+    <select id="getProjectModuleQuestionnaireSelectedList"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.qnaire.ProjectModuleQuestionnaireSelectedDTO">
+        SELECT
+            rpm.project_id projectId,
+            rpm.id moduleId,
+            rpm.`name`,
+            rpq.questionnaire_id questionnaireId,
+            rpq.version,
+            rpm.`status`
+        FROM rs_project_module rpm
+        LEFT JOIN rs_project_questionnaire rpq
+            ON (rpm.project_id = rpq.project_id AND rpm.id = rpq.module_id)
+        WHERE 1 = 1
+        AND rpm.is_delete = 0
+        AND rpq.is_delete = 0
+        AND rpm.project_id = #{projectId}
+        ORDER BY rpq.version DESC
+    </select>
+
+
+    <select id="getQuestionnaireIdByCode" resultType="integer">
+        select rpq.id
+        from rs_project_module rpm
+        left join rs_project_questionnaire rpq on rpm.id = rpq.module_id
+        where 1 = 1 and rpm.project_id = #{projectId} and rpm.code = #{code}
+    </select>
+
+    <select id="getProjectModuleInfo" resultType="com.monetware.ringsurvey.business.pojo.dto.qnaire.ProjectModuleDTO">
+        SELECT
+        rp.`status`,
+        pm.id moduleId,
+        pm.name,
+        pm.code code,
+        pm.max_version version,
+        pq.id qnaireId
+        FROM rs_project rp
+        LEFT JOIN rs_project_module pm ON pm.project_id = rp.id AND pm.`status` = 1
+        LEFT JOIN rs_project_questionnaire pq ON pq.module_id = pm.id AND pq.version = pm.max_version
+        WHERE rp.id = #{projectId}
+        ORDER BY pm.id DESC
+        LIMIT 1
+    </select>
+</mapper>

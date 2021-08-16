@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectDao">
+
+    <!-- 获取头部信息 -->
+    <select id="getProjectNameAndRole" resultType="com.monetware.ringsurvey.business.pojo.dto.project.ProjectHeadDTO">
+        select
+        rp.id,
+        rp.name,
+        rp.type,
+		GROUP_CONCAT(ur.role_id) roleId,
+		rp.invite_code inviteCode,
+		rp.code_auto_audit autoAudit,
+		rp.code_expire_time expireTime,
+		rp.create_user createUser,
+		ru.role projectRole,
+		pp.all_property allProperty,
+		pp.use_property useProperty,
+		pp.mark_property markProperty
+        from rs_project rp
+		LEFT JOIN rs_project_team_user_role ur ON ur.project_id = rp.id
+		LEFT JOIN rs_project_property pp ON pp.project_id = rp.id
+		LEFT JOIN rs_user ru ON rp.create_user = ru.id
+		WHERE rp.id = #{projectId} AND ur.user_id = #{userId}
+		GROUP BY rp.id
+    </select>
+
+    <!-- 获取项目详情 -->
+    <select id="getProjectInfo" resultType="com.monetware.ringsurvey.business.pojo.dto.project.ProjectInfoDTO">
+        SELECT
+        rp.id,
+        rp.`name`,
+        rp.description,
+        rp.`type`,
+        GROUP_CONCAT(rr.name) roleName,
+        rp.label_text labelText,
+        json_extract(rp.config,'$.multipleQuestionnaire') qnaireType,
+        rp.create_user createUser,
+        ru.name createUserStr,
+        rp.create_time createTime,
+        rp.last_modify_time updateTime,
+        rp.begin_date beginTime,
+        rp.end_date endTime,
+        rp.`status`
+        FROM rs_project rp
+		LEFT JOIN rs_project_team_user_role ur ON ur.project_id = rp.id
+		LEFT JOIN rs_role rr ON ur.role_id = rr.id
+		LEFT JOIN rs_user ru ON rp.create_user = ru.id
+        WHERE rp.id = #{projectId} and ur.user_id = #{userId}
+		GROUP BY rp.id
+    </select>
+
+    <!-- 获取项目列表 -->
+    <select id="getProjectList" parameterType="com.monetware.ringsurvey.business.pojo.vo.project.ProjectListVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.project.ProjectListDTO">
+        SELECT
+        rp.id,
+        rp.`name`,
+        rp.type,
+        rp.label_text labelText,
+        GROUP_CONCAT(rpp.code) role,
+        (SELECT GROUP_CONCAT(rr.name) FROM rs_role rr
+        LEFT JOIN rs_project_team_user_role ur ON ur.role_id = rr.id
+        WHERE ur.project_id = rp.id AND ur.user_id = #{userId}
+        GROUP BY ur.project_id
+        ) roleName,
+        json_extract(rp.config,'$.ifOpenQuota') quotaType,
+        json_extract(rp.config,'$.multipleQuestionnaire') multipleQuestionnaire,
+        json_extract(rp.config,'$.ifOpenSample') ifOpenSample,
+        ru.`name` userName,
+        ru.role projectRole,
+        rp.create_time createTime,
+        rp.last_modify_time updateTime,
+        rp.`status`,
+        rp.create_user createUser
+        FROM rs_project rp
+        LEFT JOIN rs_project_team_user rptu ON rp.id = rptu.project_id
+        LEFT JOIN rs_project_team_user_role rptur ON rptur.project_id = rptu.project_id AND rptur.user_id = rptu.user_id
+        LEFT JOIN rs_role_permission rrp ON rrp.role_id = rptur.role_id
+        LEFT JOIN rs_project_permission rpp ON rpp.id = rrp.permission_id AND rpp.if_root = 1
+        LEFT JOIN rs_user ru ON rp.create_user = ru.id
+        WHERE 1 = 1 AND rp.is_delete = 0 AND (rp.create_user = #{userId} OR (rptu.user_id = #{userId} and rptu.status = 2))
+        <if test="searchType == 'base'">
+            <if test="userType == 1">
+                AND rp.create_user = #{userId}
+            </if>
+            <if test="userType == 2">
+                AND rp.create_user != #{userId}
+            </if>
+            <if test="type != null and type != ''">
+                AND rp.type = #{type}
+            </if>
+            <if test="status != null">
+                AND rp.`status` = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (rp.id like CONCAT("%", #{keyword}, "%") OR rp.`name` like CONCAT("%", #{keyword}, "%") OR rp.label_text like CONCAT("%", #{keyword}, "%") OR ru.`name` like CONCAT("%", #{keyword}, "%"))
+            </if>
+            <if test="multipleQuestionnaire != null">
+                AND json_extract(rp.config,'$.multipleQuestionnaire') = #{multipleQuestionnaire}
+            </if>
+        </if>
+        <if test="searchType == 'advanced'">
+            <if test="name != null and name != ''">
+                AND rp.`name` like CONCAT("%", #{name}, "%")
+            </if>
+            <if test="labelText != null and labelText != ''">
+                AND rp.label_text like CONCAT("%", #{labelText}, "%")
+            </if>
+            <if test="type != null and type != ''">
+                AND rp.type = #{type}
+            </if>
+            <if test="status != null">
+                AND rp.`status` = #{status}
+            </if>
+            <if test="userName != null and userName != ''">
+                AND ru.`name` = #{userName}
+            </if>
+            <if test="startCreateTime != null">
+                AND rp.create_time &gt;= #{startCreateTime}
+            </if>
+            <if test="endCreateTime != null">
+                AND rp.create_time &lt;= #{endCreateTime}
+            </if>
+            <if test="startRunTime != null">
+                AND rp.begin_date &gt;= #{startRunTime}
+            </if>
+            <if test="endRunTime != null">
+                AND rp.begin_date &lt;= #{endRunTime}
+            </if>
+            <if test="startStopTime != null">
+                AND rp.end_date &gt;= #{startStopTime}
+            </if>
+            <if test="endStopTime != null">
+                AND rp.end_date &lt;= #{endStopTime}
+            </if>
+            <if test="startUpdateTime != null">
+                AND rp.last_modify_time &gt;= #{startUpdateTime}
+            </if>
+            <if test="endUpdateTime != null">
+                AND rp.last_modify_time &lt;= #{endUpdateTime}
+            </if>
+            <if test="multipleQuestionnaire != null">
+                AND json_extract(rp.config,'$.multipleQuestionnaire') = #{multipleQuestionnaire}
+            </if>
+        </if>
+        GROUP BY rp.id
+        ORDER BY rp.create_time DESC
+    </select>
+
+    <!-- 获取项目列表 -->
+    <select id="getProjectListTest" parameterType="java.lang.Integer"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.project.ProjectListDTO">
+        SELECT
+        rp.id,
+        rp.`name`,
+        rp.type,
+        rp.label_text labelText,
+        GROUP_CONCAT(rpp.code) role,
+        (SELECT GROUP_CONCAT(rr.name) FROM rs_role rr
+        LEFT JOIN rs_project_team_user_role ur ON ur.role_id = rr.id
+        WHERE ur.project_id = rp.id AND ur.user_id = #{userId}
+        GROUP BY ur.project_id
+        ) roleName,
+        json_extract(rp.config,'$.ifOpenQuota') quotaType,
+        json_extract(rp.config,'$.multipleQuestionnaire') multipleQuestionnaire,
+        json_extract(rp.config,'$.ifOpenSample') ifOpenSample,
+        ru.`name` userName,
+        ru.role projectRole,
+        rp.create_time createTime,
+        rp.last_modify_time updateTime,
+        rp.`status`,
+        rp.create_user createUser
+        FROM rs_project rp
+        LEFT JOIN rs_project_team_user rptu ON rp.id = rptu.project_id
+        LEFT JOIN rs_project_team_user_role rptur ON rptur.project_id = rptu.project_id AND rptur.user_id = rptu.user_id
+        LEFT JOIN rs_role_permission rrp ON rrp.role_id = rptur.role_id
+        LEFT JOIN rs_project_permission rpp ON rpp.id = rrp.permission_id AND rpp.if_root = 1
+        LEFT JOIN rs_user ru ON rp.create_user = ru.id
+        WHERE 1 = 1
+        AND rp.is_delete = 0
+        AND (rp.create_user = #{userId} OR (rptu.user_id = #{userId} and rptu.status = 2))
+        GROUP BY rp.id
+        ORDER BY rp.create_time DESC
+    </select>
+
+    <!-- 获取统计汇总数据 -->
+    <select id="getProjectReport" resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.ProjectReportDTO">
+        SELECT
+        p.num_of_team numOfTeam,
+        (SELECT COUNT(1) FROM rs_project_team_user_role ur WHERE ur.project_id = #{projectId} AND ur.role_id = 5) interviewerNum,
+        p.num_of_sample numOfSample,
+        (SELECT COUNT(1) FROM rs_project_sample_${projectId} WHERE `status` in (3, 12)) finishNum,
+        (SELECT COUNT(1) from rs_project_response_${projectId} WHERE response_status IN (6, 8, 9, 10)) numOfAnswer,
+        (SELECT COUNT(0) from rs_project_response_${projectId}) responseNum,
+        p.file_size fileSize,
+        p.answer_time_len timeLen
+        FROM rs_project p WHERE p.id = #{projectId}
+    </select>
+
+    <!-- 获取统计汇总数据 -->
+    <select id="getProjectReportByUserId" resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.ProjectReportDTO">
+        SELECT
+        COUNT(1) responseNum,
+        IFNULL(SUM(CASE WHEN r.response_type = 1 THEN 1 ELSE 0 END), 0) numOfAnswer,
+        IFNULL(SUM(r.response_duration), 0) timeLen,
+        (SELECT COUNT(1) FROM rs_project_sample_assignment_${projectId} sa
+        LEFT JOIN rs_project_team_user tu ON sa.team_user_id = tu.id AND tu.project_id = #{projectId}
+        WHERE tu.user_id = #{userId}) numOfSample,
+        (SELECT COUNT(1) FROM rs_project_sample_${projectId} s
+        LEFT JOIN rs_project_sample_assignment_${projectId} sa ON s.sample_guid = sa.sample_guid
+        LEFT JOIN rs_project_team_user tu ON sa.team_user_id = tu.id AND tu.project_id = #{projectId}
+        WHERE tu.user_id = #{userId} AND s.`status` in (3, 12)) finishNum
+        FROM rs_project_response_${projectId} r
+        LEFT JOIN rs_project_sample_assignment_${projectId} a ON r.sample_guid = a.sample_guid
+        LEFT JOIN rs_project_team_user tu ON a.team_user_id = tu.id AND tu.project_id = #{projectId}
+        WHERE tu.user_id = #{userId}
+    </select>
+
+    <!-- 增加数量 -->
+    <update id="updateProjectAdd" parameterType="com.monetware.ringsurvey.business.pojo.po.BaseProject">
+        update rs_project set
+        <if test="numOfTeam != null">
+            num_of_team = num_of_team + #{numOfTeam},
+        </if>
+        <if test="numOfSample != null">
+            num_of_sample = num_of_sample + #{numOfSample},
+        </if>
+        <if test="fileSize != null">
+            file_size = file_size + #{fileSize},
+        </if>
+        <if test="numOfAnswer != null">
+            num_of_answer = num_of_answer + #{numOfAnswer},
+        </if>
+        <if test="answerTimeLen != null">
+            answer_time_len = answer_time_len + #{answerTimeLen},
+        </if>
+        last_modify_time = #{lastModifyTime},
+        last_modify_user = #{lastModifyUser}
+        where id = #{id}
+    </update>
+
+    <!-- 增加数量 -->
+    <update id="updateProjectDel" parameterType="com.monetware.ringsurvey.business.pojo.po.BaseProject">
+        update rs_project set
+        <if test="numOfTeam != null">
+            num_of_team = num_of_team - #{numOfTeam},
+        </if>
+        <if test="numOfSample != null">
+            num_of_sample = num_of_sample - #{numOfSample},
+        </if>
+        <if test="fileSize != null">
+            file_size = file_size - #{fileSize},
+        </if>
+        <if test="numOfAnswer != null">
+            num_of_answer = num_of_answer - #{numOfAnswer},
+        </if>
+        <if test="answerTimeLen != null">
+            answer_time_len = answer_time_len - #{answerTimeLen},
+        </if>
+        last_modify_time = #{lastModifyTime},
+        last_modify_user = #{lastModifyUser}
+        where id = #{id}
+    </update>
+
+    <!-- 获取已结束的项目 -->
+    <select id="getProjectByFinish" resultType="com.monetware.ringsurvey.business.pojo.dto.project.ProjectFinishDTO">
+        SELECT
+        p.id,
+        p.create_time createTime,
+        p.end_date endDate,
+        u.expire_time userExpireTime,
+        u.role
+        FROM rs_project p
+        LEFT JOIN rs_user u ON p.create_user = u.id
+        WHERE p.`status` = 3
+    </select>
+
+    <!-- 获取过去7天数据量 -->
+    <select id="getLast7DayCount" resultType="Map">
+        SELECT
+        r.day dayDate,
+        COUNT(r.day) count
+        FROM(
+            select
+            date_format(create_time, '%Y-%m-%d') as day
+            FROM rs_project
+            WHERE create_time &gt;= #{dateStr}
+            order by create_time
+        ) r
+        GROUP BY r.day
+    </select>
+
+    <!-- 获取累计项目总数 -->
+    <select id="getProjectTotalResult" resultType="Map">
+        SET @var := 0;
+        SELECT n.yearDay, n.totalCount FROM (
+        SELECT create_time yearDay,count,(@var := @var + count) totalCount
+        FROM (
+        SELECT DATE_FORMAT(create_time,'%Y-%m-%d') create_time, COUNT(1) count
+        FROM rs_project
+        GROUP BY DATE_FORMAT(create_time,'%Y-%m-%d')) a) n
+        WHERE n.yearDay &gt; #{startDate}
+    </select>
+
+    <!-- 获每日项目总数 -->
+    <select id="getProjectNewResult" resultType="Map">
+        SELECT DATE_FORMAT(create_time,'%Y-%m-%d') yearDay, COUNT(1) totalCount
+        FROM rs_project
+        WHERE DATE_FORMAT(create_time,'%Y-%m-%d') &gt; #{startDate}
+        GROUP BY DATE_FORMAT(create_time,'%Y-%m-%d')
+    </select>
+
+    <!-- 获取项目总数 -->
+    <select id="getProjectCount" resultType="Map">
+		select
+		count(1) projectCount,
+		sum(num_of_answer) answerCount
+		from rs_project
+		-- where is_delete = 0
+	</select>
+
+    <!-- 获取用户项目总数 -->
+    <select id="getProjectCountByUserId" parameterType="java.lang.Integer" resultType="java.util.Map">
+		SELECT
+            rp.type,
+            count(1) count
+        FROM
+            rs_project_team_user tu
+        LEFT JOIN rs_user ru ON tu.user_id = ru.id
+        LEFT JOIN rs_project rp ON tu.project_id = rp.id
+        WHERE
+            ru.id = #{userId}
+        AND rp.is_delete = 0
+        GROUP BY
+            rp.type
+	</select>
+
+</mapper>

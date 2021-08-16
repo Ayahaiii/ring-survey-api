@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.MultiplySourceIssueDao">
+
+    <select id="getMultiplySourceIssues"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.issue.MultiplySourceIssueDTO">
+        SELECT
+            msi.id,
+            msi.`code`,
+            msi.`name`,
+            msi.`status`,
+            msi.project_id projectId,
+            tu.id teamUserId,
+            ru.`name` teamUserName,
+            msi.is_delete isDelete
+        FROM
+            rs_multiply_source_issue msi
+            LEFT JOIN rs_project_team_user tu ON msi.team_user_id = tu.id
+            LEFT JOIN rs_user ru ON tu.user_id = ru.id
+        WHERE
+            1 = 1
+            AND msi.is_delete = 0
+            AND msi.project_id = #{projectId}
+    </select>
+</mapper>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectPublishLogDao">
+
+    <select id="getPublishLogs" parameterType="com.monetware.ringsurvey.business.pojo.vo.issue.PublishSearchVO"
+        resultType="com.monetware.ringsurvey.business.pojo.dto.issue.PublishLogDTO">
+        SELECT
+            log.id,
+            log.`type`,
+            log.`status`,
+            sample.`name` sampleName,
+            log.publish_to publishTo,
+            log.`subject`,
+            log.content,
+            log.create_time createTime
+        FROM
+            rs_project_publish_log_${projectId} log
+        LEFT JOIN rs_project_sample_${projectId} sample ON log.sample_guid = sample.sample_guid
+        WHERE
+            1 = 1
+        <if test="status != null">
+            AND log.`status` = #{status}
+        </if>
+        <if test="type != null">
+            AND log.`type` = #{type}
+        </if>
+        <if test="keyWord != null and keyWord != ''">
+            AND (log.publish_to LIKE CONCAT("%", #{keyword}, "%")
+            OR sample.`name` LIKE CONCAT("%", #{keyword}, "%")
+            OR sample.`email` LIKE CONCAT("%", #{keyword}, "%")
+            OR sample.`phone` LIKE CONCAT("%", #{keyword}, "%"))
+        </if>
+        <if test="startCreateTime != null">
+            AND log.create_time &gt;= #{startCreateTime}
+        </if>
+        <if test="endCreateTime != null">
+            AND log.create_time &lt;= #{endCreateTime}
+        </if>
+    </select>
+
+</mapper>

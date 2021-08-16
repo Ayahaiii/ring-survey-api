@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.CommentDao">
+
+    <select id="getCommentsInfo" resultType="com.monetware.ringsurvey.business.pojo.dto.library.QnaireCommentsDTO">
+        SELECT
+        rqc.id,
+        rqc.reply_id,
+        rqc.library_id,
+        rqc.user_id,
+        ru1.name user_name,
+        rqc.content,
+        rqc.commented_id,
+ 		ru2.name commented_name,
+ 		score,
+        rqc.create_time
+        FROM rs_questionnaire_comments rqc LEFT JOIN rs_user ru1 ON rqc.user_id = ru1.id
+ 						           LEFT JOIN rs_user ru2 ON rqc.commented_id = ru2.id
+        WHERE rqc.library_id = #{libraryId}
+    </select>
+
+
+
+</mapper>

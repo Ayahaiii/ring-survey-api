@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectResponseAudioDao">
+
+
+    <select id="getResponseAudioList"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.response.ResponseAudioListDTO">
+        SELECT
+        rpra.id,
+        rpra.audio_name audioName,
+        rpra.audio_duration duration,
+        rpra.create_time createTime,
+        ru.name interviewName,
+        rpra.file_path filePath
+        FROM rs_project_response_audio_${projectId} rpra
+        LEFT JOIN rs_user ru ON rpra.interview_id = ru.id
+        WHERE 1 = 1
+        <if test="responseGuid != null and responseGuid != '' ">
+            AND rpra.response_guid = #{responseGuid}
+        </if>
+        <if test="keyword != null and keyword != '' ">
+            AND (ru.name LIKE CONCAT('%',#{keyword},'%')
+            OR rpra.audio_name LIKE CONCAT('%',#{keyword},'%'))
+        </if>
+        <if test="checkRole != null and (checkRole == 5 or checkRole == 4)">
+            AND ru.id = #{userId}
+        </if>
+
+    </select>
+
+    <select id="getInterviews" parameterType="java.lang.Integer" resultType="com.monetware.ringsurvey.business.pojo.dto.response.InterviewerDTO">
+        SELECT DISTINCT
+            audio.interview_id id,
+            ru.`name`,
+            ru.telephone phone,
+            ru.email
+        FROM
+            rs_project_response_audio_#{projectId} audio
+        LEFT JOIN rs_user ru ON audio.interview_id = ru.id
+    </select>
+</mapper>

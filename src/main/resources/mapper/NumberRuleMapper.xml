@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.NumberRuleDao">
+
+    <select id="getNumberRuleList" parameterType="java.lang.Integer" resultType="com.monetware.ringsurvey.business.pojo.dto.sample.NumberRuleListDTO">
+        SELECT
+            rule.id,
+            rule.project_id projectId,
+            rule.`name`,
+            rule.area_code areaCode,
+            rule.phone_number phoneNumber,
+            rule.ext_num extNum,
+            rule.serial_no serialNo,
+            rule.create_user createUser,
+            cu.`name` createUserStr,
+            rule.create_time createTime,
+            rule.last_modify_user updateUser,
+            pu.`name` updateUserStr,
+            rule.last_modify_time updateTime,
+            rule.is_delete isDelete
+        FROM rs_number_rule rule
+        LEFT JOIN rs_user cu ON rule.create_user = cu.id
+        LEFT JOIN rs_user pu ON rule.last_modify_user = pu.id
+        WHERE rule.project_id = #{projectId}
+        AND rule.is_delete = 0
+        ORDER BY rule.serial_no
+    </select>
+
+    <!--检验组合规则名称重复-->
+    <select id="checkRuleExistByName" resultType="java.lang.Integer">
+        select count(1)
+        from rs_number_rule
+        where 1 = 1 and `name` = #{name} and project_id = #{projectId}
+        <if test="oldName != null and oldName !=''">
+            and `name` != #{oldName}
+        </if>
+    </select>
+
+</mapper>

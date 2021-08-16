@@ -1,0 +1,654 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectSampleDao">
+
+    <!-- 查询样本列表-->
+    <select id="getSampleList" parameterType="com.monetware.ringsurvey.business.pojo.vo.sample.SampleListVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.sample.SampleListDTO">
+        SELECT
+        ps.*,
+        tu.user_name managerName,
+        tu.user_id managerId
+        FROM rs_project_sample_${projectId} ps
+        LEFT JOIN rs_project_sample_assignment_${projectId} sa
+            ON (ps.sample_guid = sa.sample_guid AND sa.type = 1 AND sa.is_delete = 0)
+        LEFT JOIN rs_project_team_user tu ON sa.team_user_id = tu.id AND tu.project_id = #{projectId}
+        where 1 = 1 AND ps.if_virtual = 1 AND ps.is_delete = 0
+        <if test="status != null">
+            AND ps.status = #{status}
+        </if>
+        <if test="null != sampleCondition and sampleCondition != ''">
+            AND ${sampleCondition}
+        </if>
+        <if test="managerName != null and managerName != ''">
+            AND tu.user_name = #{managerName}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (ps.`name` LIKE CONCAT('%',#{keyword},'%') or
+            ps.`code` LIKE CONCAT('%',#{keyword},'%') or
+            ps.`address` LIKE CONCAT('%',#{keyword},'%') or
+            ps.`email` LIKE CONCAT('%',#{keyword},'%') or
+            ps.`phone` LIKE CONCAT('%',#{keyword},'%'))
+        </if>
+        <if test="checkRole != null and checkRole == 5">
+            AND tu.user_id = #{userId}
+        </if>
+        order by ps.status
+    </select>
+
+    <!-- 查询样本列表-->
+    <select id="getSampleListByOther" parameterType="com.monetware.ringsurvey.business.pojo.vo.sample.SampleListVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.sample.SampleListDTO">
+        SELECT
+        s.*,
+        tu1.user_name managerName,
+        tu1.user_id managerId
+        FROM (
+        SELECT
+        ps.*
+        FROM rs_project_sample_${projectId} ps
+        LEFT JOIN rs_project_sample_assignment_${projectId} sa ON ps.sample_guid = sa.sample_guid
+        LEFT JOIN rs_project_team_user tu ON sa.team_user_id = tu.id AND tu.project_id = #{projectId}
+        where 1 = 1 AND ps.if_virtual = 1 AND ps.is_delete = 0
+        <if test="status != null">
+            AND ps.status = #{status}
+        </if>
+        <if test="null != sampleCondition and sampleCondition != ''">
+            AND ${sampleCondition}
+        </if>
+        <if test="managerName != null and managerName != ''">
+            AND tu.user_name = #{managerName}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (ps.`name` LIKE CONCAT('%',#{keyword},'%') or
+            ps.`code` LIKE CONCAT('%',#{keyword},'%') or
+            ps.`address` LIKE CONCAT('%',#{keyword},'%') or
+            ps.`email` LIKE CONCAT('%',#{keyword},'%') or
+            ps.`phone` LIKE CONCAT('%',#{keyword},'%'))
+        </if>
+        <if test="checkRole != null and checkRole == 4">
+            AND (tu.user_id IN (
+            SELECT
+            g.user_id
+            FROM rs_project_team_user_to_group g
+            LEFT JOIN rs_project_team_user_to_group g1 ON g1.group_id = g.group_id
+            WHERE g1.project_id = #{projectId} AND g1.user_id = #{userId}) OR tu.user_id = #{userId})
+        </if>
+        <if test="checkRole != null and checkRole == 5">
+            AND tu.user_id = #{userId}
+        </if>
+        ) s
+        LEFT JOIN rs_project_sample_assignment_${projectId} sa1 ON (s.sample_guid = sa1.sample_guid AND sa1.is_delete = 0)
+        LEFT JOIN rs_project_team_user tu1 ON sa1.team_user_id = tu1.id AND tu1.project_id = #{projectId}
+        WHERE sa1.type = 1
+        order by s.status
+    </select>
+
+    <!-- 查询研究对象列表-->
+    <select id="getSampleListByIds" resultType="com.monetware.ringsurvey.business.pojo.dto.sample.SampleListDTO">
+        SELECT
+        ps.*,
+        tu.user_name managerName
+        FROM rs_project_sample_${projectId} ps
+        LEFT JOIN rs_project_sample_assignment_${projectId} sa ON (ps.sample_guid = sa.sample_guid and sa.`type` = 1 AND sa.is_delete = 0)
+        LEFT JOIN rs_project_team_user tu ON sa.team_user_id = tu.id AND tu.project_id = #{projectId}
+        where 1 = 1 AND ps.is_delete = 0 and ps.id in
+        <foreach collection="list" item="item" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </select>
+
+    <!--删除研究对象-->
+    <delete id="deleteSample" parameterType="com.monetware.ringsurvey.business.pojo.vo.sample.DeleteSampleVO">
+        <foreach collection="sampleIds" item="item" index="index" separator=";">
+            update rs_project_sample_${projectId}
+            set is_delete = 1
+            where id = #{item}
+            and `status` = 0
+        </foreach>
+    </delete>
+
+    <!-- 清空未接触样本 -->
+    <update id="clearInitial" parameterType="com.monetware.ringsurvey.business.pojo.vo.sample.ClearInitialVO">
+        UPDATE rs_project_sample_${projectId}
+        SET
+            is_delete = 1,
+            delete_user = #{userId}
+        WHERE `status` = 0 AND is_delete = 0
+        <if test="checkRole != null and checkRole != 2">
+            AND sample_guid IN
+            (SELECT sample_guid FROM rs_project_sample_assignment_${projectId} sa
+            LEFT JOIN rs_project_team_user tu ON sa.team_user_id = tu.id AND tu.project_id = #{projectId}
+            WHERE tu.user_id = #{userId} AND sa.`type` = 1)
+        </if>
+    </update>
+
+    <!-- 去除初始化的重复样本 -->
+    <update id="deleteDuplicate" parameterType="com.monetware.ringsurvey.business.pojo.vo.sample.SampleRepeatVO">
+        UPDATE rs_project_sample_${projectId}
+        SET
+            is_delete = 1,
+            delete_user = #{userId}
+        WHERE `status` = 0 AND is_delete = 0
+        AND id NOT IN (SELECT id FROM (SELECT MIN(id) AS id FROM rs_project_sample_${projectId} WHERE is_delete = 0 GROUP BY ${groupBy}) t)
+        <if test="checkRole != null and checkRole != 2">
+            AND sample_guid IN
+            (SELECT sample_guid FROM rs_project_sample_assignment_${projectId} sa
+            LEFT JOIN rs_project_team_user tu ON sa.team_user_id = tu.id AND tu.project_id = #{projectId}
+            WHERE tu.user_id = #{userId} AND sa.`type` = 1)
+        </if>
+    </update>
+
+    <!-- 检查code是否重复 -->
+    <select id="checkSampleExistByCode" resultType="java.lang.Integer">
+        select count(1) from rs_project_sample_${projectId}
+        where 1 = 1 and is_delete = 0 and code = #{code}
+        <if test="sampleId != null and sampleId !=''">
+            and id != #{sampleId}
+        </if>
+    </select>
+
+    <!-- 检查code是否重复 -->
+    <select id="getSampleGuidByCode" resultType="com.monetware.ringsurvey.business.pojo.po.BaseProjectSample">
+        select * from rs_project_sample_${projectId}
+        where 1 = 1 and is_delete = 0 and code = #{code}
+    </select>
+
+    <update id="updateSampleList">
+        <foreach collection="list" item="item" index="index" separator=";">
+            update rs_project_sample_${projectId}
+            set
+            <if test="item.name != null and item.name != ''">
+                name =#{item.name},
+            </if>
+            <if test="item.code != null and item.code != ''">
+                code =#{item.code},
+            </if>
+            <if test="item.gender != null">
+                gender =#{item.gender},
+            </if>
+            <if test="item.age != null">
+                age =#{item.age},
+            </if>
+            <if test="item.birth != null and item.birth != ''">
+                birth =#{item.birth},
+            </if>
+            <if test="item.marriageStatus != null and item.marriageStatus != ''">
+                marriage_status =#{item.marriageStatus},
+            </if>
+            <if test="item.education != null and item.education != ''">
+                education =#{item.education},
+            </if>
+            <if test="item.organization != null and item.organization != ''">
+                organization =#{item.organization},
+            </if>
+            <if test="item.profession != null and item.profession != ''">
+                profession =#{item.profession},
+            </if>
+            <if test="item.position != null and item.position != ''">
+                position =#{item.position},
+            </if>
+            <if test="item.politicalStatus != null and item.politicalStatus != ''">
+                political_status =#{item.politicalStatus},
+            </if>
+            <if test="item.religion != null and item.religion != ''">
+                religion =#{item.religion},
+            </if>
+            <if test="item.nationality != null and item.nationality != ''">
+                nationality =#{item.nationality},
+            </if>
+            <if test="item.language != null and item.language != ''">
+                language =#{item.language},
+            </if>
+            <if test="item.placeOfBirth != null and item.placeOfBirth != ''">
+                place_of_birth =#{item.placeOfBirth},
+            </if>
+            <if test="item.dialects != null and item.dialects != ''">
+                dialects =#{item.dialects},
+            </if>
+            <if test="item.description != null and item.description != ''">
+                description =#{item.description},
+            </if>
+            <if test="item.detail != null and item.detail != ''">
+                detail =#{item.detail},
+            </if>
+            <if test="item.email != null and item.email != ''">
+                email =#{item.email},
+            </if>
+            <if test="item.mobile != null and item.mobile != ''">
+                mobile =#{item.mobile},
+            </if>
+            <if test="item.phone != null and item.phone != ''">
+                phone =#{item.phone},
+            </if>
+            <if test="item.weixin != null and item.weixin != ''">
+                phone =#{item.weixin},
+            </if>
+            <if test="item.qq != null and item.qq != ''">
+                qq =#{item.qq},
+            </if>
+            <if test="item.weibo != null and item.weibo != ''">
+                weibo =#{item.weibo},
+            </if>
+            <if test="item.province != null and item.province != ''">
+                province =#{item.province},
+            </if>
+            <if test="item.city != null and item.city != ''">
+                city =#{item.city},
+            </if>
+            <if test="item.district != null and item.district != ''">
+                district =#{item.district},
+            </if>
+            <if test="item.town != null and item.town != ''">
+                town =#{item.town},
+            </if>
+            <if test="item.address != null and item.address != ''">
+                address =#{item.address},
+            </if>
+            <if test="item.custom1 != null and item.custom1 != ''">
+                custom1 =#{item.custom1},
+            </if>
+            <if test="item.custom2 != null and item.custom2 != ''">
+                custom2 =#{item.custom2},
+            </if>
+            <if test="item.custom3 != null and item.custom3 != ''">
+                custom3 =#{item.custom3},
+            </if>
+            <if test="item.custom4 != null and item.custom4 != ''">
+                custom4 =#{item.custom4},
+            </if>
+            <if test="item.custom5 != null and item.custom5 != ''">
+                custom5 =#{item.custom5},
+            </if>
+            <if test="item.status != null">
+                status =#{item.status},
+            </if>
+            <if test="item.extraData != ''">
+                extra_data =#{item.extraData},
+            </if>
+            <if test="item.lastModifyTime != null">
+                last_modify_time =#{item.lastModifyTime},
+            </if>
+            <if test="item.lastModifyUser != null">
+                last_modify_user =#{item.lastModifyUser},
+            </if>
+            <if test="item.createTime != null">
+                create_time =#{item.createTime},
+            </if>
+            <if test="item.createUser != null">
+                create_user =#{item.createUser},
+            </if>
+            <if test="item.isDelete != null">
+                is_delete =#{item.isDelete},
+            </if>
+            <if test="item.deleteUser != null">
+                delete_user =#{item.deleteUser},
+            </if>
+            sample_guid = #{item.sampleGuid}
+            where sample_guid =#{item.sampleGuid}
+        </foreach>
+    </update>
+
+    <update id="updateSampleListByCode">
+        <foreach collection="list" item="item" index="index" separator=";">
+            update rs_project_sample_${projectId}
+            set
+            <if test="item.name != null and item.name != ''">
+                name =#{item.name},
+            </if>
+            <if test="item.code != null and item.code != ''">
+                code =#{item.code},
+            </if>
+            <if test="item.gender != null">
+                gender =#{item.gender},
+            </if>
+            <if test="item.age != null">
+                age =#{item.age},
+            </if>
+            <if test="item.birth != null and item.birth != ''">
+                birth =#{item.birth},
+            </if>
+            <if test="item.marriageStatus != null and item.marriageStatus != ''">
+                marriage_status =#{item.marriageStatus},
+            </if>
+            <if test="item.education != null and item.education != ''">
+                education =#{item.education},
+            </if>
+            <if test="item.organization != null and item.organization != ''">
+                organization =#{item.organization},
+            </if>
+            <if test="item.profession != null and item.profession != ''">
+                profession =#{item.profession},
+            </if>
+            <if test="item.position != null and item.position != ''">
+                position =#{item.position},
+            </if>
+            <if test="item.politicalStatus != null and item.politicalStatus != ''">
+                political_status =#{item.politicalStatus},
+            </if>
+            <if test="item.religion != null and item.religion != ''">
+                religion =#{item.religion},
+            </if>
+            <if test="item.nationality != null and item.nationality != ''">
+                nationality =#{item.nationality},
+            </if>
+            <if test="item.language != null and item.language != ''">
+                language =#{item.language},
+            </if>
+            <if test="item.placeOfBirth != null and item.placeOfBirth != ''">
+                place_of_birth =#{item.placeOfBirth},
+            </if>
+            <if test="item.dialects != null and item.dialects != ''">
+                dialects =#{item.dialects},
+            </if>
+            <if test="item.description != null and item.description != ''">
+                description =#{item.description},
+            </if>
+            <if test="item.detail != null and item.detail != ''">
+                detail =#{item.detail},
+            </if>
+            <if test="item.email != null and item.email != ''">
+                email =#{item.email},
+            </if>
+            <if test="item.mobile != null and item.mobile != ''">
+                mobile =#{item.mobile},
+            </if>
+            <if test="item.phone != null and item.phone != ''">
+                phone =#{item.phone},
+            </if>
+            <if test="item.weixin != null and item.weixin != ''">
+                phone =#{item.weixin},
+            </if>
+            <if test="item.qq != null and item.qq != ''">
+                qq =#{item.qq},
+            </if>
+            <if test="item.weibo != null and item.weibo != ''">
+                weibo =#{item.weibo},
+            </if>
+            <if test="item.province != null and item.province != ''">
+                province =#{item.province},
+            </if>
+            <if test="item.city != null and item.city != ''">
+                city =#{item.city},
+            </if>
+            <if test="item.district != null and item.district != ''">
+                district =#{item.district},
+            </if>
+            <if test="item.town != null and item.town != ''">
+                town =#{item.town},
+            </if>
+            <if test="item.address != null and item.address != ''">
+                address =#{item.address},
+            </if>
+            <if test="item.custom1 != null and item.custom1 != ''">
+                custom1 =#{item.custom1},
+            </if>
+            <if test="item.custom2 != null and item.custom2 != ''">
+                custom2 =#{item.custom2},
+            </if>
+            <if test="item.custom3 != null and item.custom3 != ''">
+                custom3 =#{item.custom3},
+            </if>
+            <if test="item.custom4 != null and item.custom4 != ''">
+                custom4 =#{item.custom4},
+            </if>
+            <if test="item.custom5 != null and item.custom5 != ''">
+                custom5 =#{item.custom5},
+            </if>
+            <if test="item.status != null">
+                status =#{item.status},
+            </if>
+            <if test="item.extraData != ''">
+                extra_data =#{item.extraData},
+            </if>
+            <if test="item.lastModifyTime != null">
+                last_modify_time =#{item.lastModifyTime},
+            </if>
+            <if test="item.lastModifyUser != null">
+                last_modify_user =#{item.lastModifyUser},
+            </if>
+            <if test="item.createTime != null">
+                create_time =#{item.createTime},
+            </if>
+            <if test="item.createUser != null">
+                create_user =#{item.createUser},
+            </if>
+            <if test="item.isDelete != null">
+                is_delete =#{item.isDelete},
+            </if>
+            <if test="item.deleteUser != null">
+                delete_user =#{item.deleteUser},
+            </if>
+            code = #{item.code}
+            where code =#{item.code}
+        </foreach>
+    </update>
+
+    <!--批量修改样本状态-->
+    <update id="updateSamplesStatus" parameterType="com.monetware.ringsurvey.business.pojo.vo.sample.SampleUpdateVO">
+        update rs_project_sample_${projectId}
+        set
+         status = #{status}
+        where sample_guid in
+        <foreach collection="sampleGuids" item="item" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </update>
+
+    <!-- 获取样本分派用户名 -->
+    <select id="getSampleAssignName" resultType="com.monetware.ringsurvey.business.pojo.dto.sample.SampleAssignNameDTO">
+        SELECT
+        sa.team_user_id id,
+        tu.user_name userName,
+        sa.type
+        FROM rs_project_sample_assignment_${projectId} sa
+        LEFT JOIN rs_project_team_user tu ON sa.team_user_id = tu.id
+        WHERE sa.sample_guid = #{sampleGuid} AND sa.is_delete = 0
+    </select>
+
+    <!--获取map类型结果集的样本-->
+    <select id="getSampleMapById" resultType="java.util.HashMap">
+        select * from rs_project_sample_${projectId}
+        where id = #{sampleId}
+    </select>
+
+    <!--获取map类型结果集的样本-->
+    <select id="getSampleMapByGuid" resultType="java.util.HashMap">
+        SELECT
+            *
+        FROM
+            rs_project_sample_#{projectId}
+        WHERE
+            sample_guid = #{sampleGuid}
+        AND is_delete = 0
+    </select>
+
+    <!-- 根据状态获取map类型的样本列表 -->
+    <select id="getSampleMapListByStatus" resultType="java.util.HashMap">
+        SELECT * FROM rs_project_sample_#{projectId}
+        WHERE `status` IN
+        <foreach collection="statusList" item="item" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </select>
+
+    <!-- 根据用户Id、状态获取map类型的样本列表 -->
+    <select id="getSampleMapListByStatusUserId" resultType="java.util.HashMap">
+        SELECT ps.*, tu.user_name managerName
+        FROM rs_project_sample_#{projectId} ps
+        LEFT JOIN rs_project_sample_assignment_${projectId} sa ON ps.sample_guid = sa.sample_guid AND sa.`type` = 1
+        LEFT JOIN rs_project_team_user tu ON sa.team_user_id = tu.id AND tu.project_id = #{projectId}
+        WHERE ps.`status` IN
+        <foreach collection="statusList" item="item" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        <if test="checkRole != null and checkRole == 5">
+            AND tu.user_id = #{userId}
+        </if>
+    </select>
+
+    <!-- 根据id列表获取map类型的样本列表 -->
+    <select id="getSampleMapListByIds" resultType="java.util.Map">
+        SELECT
+        ps.*,
+        tu.user_name managerName
+        FROM rs_project_sample_${projectId} ps
+        LEFT JOIN rs_project_sample_assignment_${projectId} sa ON ps.sample_guid = sa.sample_guid AND sa.`type` = 1
+        LEFT JOIN rs_project_team_user tu ON sa.team_user_id = tu.id AND tu.project_id = #{projectId}
+        WHERE 1 = 1
+        AND ps.`status` IN
+        <foreach collection="statusList" item="item" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        AND ps.id IN
+        <foreach collection="list" item="item" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </select>
+
+    <!-- 根据id列表获取map类型的样本列表 -->
+    <select id="getSampleMapListByIdsUserId" resultType="java.util.Map">
+        SELECT
+        ps.*,
+        tu.user_name managerName
+        FROM rs_project_sample_${projectId} ps
+        LEFT JOIN rs_project_sample_assignment_${projectId} sa ON ps.sample_guid = sa.sample_guid AND sa.`type` = 1
+        LEFT JOIN rs_project_team_user tu ON sa.team_user_id = tu.id AND tu.project_id = #{projectId}
+        WHERE 1 = 1
+        AND ps.`status` IN
+        <foreach collection="statusList" item="item" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        AND ps.id IN
+        <foreach collection="sampleIds" item="item" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        <if test="checkRole != null and checkRole == 5">
+            AND tu.user_id = #{userId}
+        </if>
+    </select>
+
+    <!--获取样本状态分布-->
+    <select id="getSampleStatusDistribution" parameterType="integer"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.sample.SampleStatusDistributionDTO">
+        select count(id) count,`status`
+        from rs_project_sample_#{projectId}
+        where is_delete = 0 and if_virtual = 1
+        group by status
+    </select>
+
+    <!--获取样本状态统计-->
+    <select id="getSampleStatusStatistics" parameterType="com.monetware.ringsurvey.business.pojo.vo.monitor.SampleStatusStatisticsVO"
+            resultType="java.util.HashMap">
+        SELECT
+            ru.id userId,
+            ru.`name` userName,
+            count(1) total,
+            SUM(CASE WHEN s.`status` = 0 THEN 1 ELSE 0 END) init,
+            SUM(CASE WHEN s.`status` = 1 THEN 1 ELSE 0 END) assign,
+            SUM(CASE WHEN s.`status` = 2 THEN 1 ELSE 0 END) running,
+            SUM(CASE WHEN s.`status` = 3 THEN 1 ELSE 0 END) finish,
+            SUM(CASE WHEN s.`status` = 4 THEN 1 ELSE 0 END) refused,
+            SUM(CASE WHEN s.`status` = 5 THEN 1 ELSE 0 END) identify,
+            SUM(CASE WHEN s.`status` = 6 THEN 1 ELSE 0 END) yuyue,
+            SUM(CASE WHEN s.`status` = 7 THEN 1 ELSE 0 END) invalid,
+            SUM(CASE WHEN s.`status` = 8 THEN 1 ELSE 0 END) calling,
+            SUM(CASE WHEN s.`status` = 9 THEN 1 ELSE 0 END) noone,
+            SUM(CASE WHEN s.`status` = 10 THEN 1 ELSE 0 END) audit_invalid,
+            SUM(CASE WHEN s.`status` = 11 THEN 1 ELSE 0 END) audit_back,
+            SUM(CASE WHEN s.`status` = 12 THEN 1 ELSE 0 END) audit_success
+        FROM
+            rs_project_sample_assignment_#{projectId} rpsa
+        LEFT JOIN rs_project_sample_#{projectId} s
+            ON (rpsa.sample_guid = s.sample_guid AND rpsa.type = 1)
+        LEFT JOIN rs_project_team_user tu ON rpsa.team_user_id = tu.id
+        LEFT JOIN rs_user ru ON tu.user_id = ru.id
+        WHERE
+            s.is_delete = 0 AND s.if_virtual = 1
+        <if test="keyword != null and keyword !=''">
+            AND (ru.`name` LIKE CONCAT("%", #{keyword}, "%") OR ru.id LIKE CONCAT("%", #{keyword}, "%"))
+        </if>
+        GROUP BY rpsa.team_user_id
+    </select>
+
+    <!--============================================ lu Begin =======================================-->
+    <!--显示全国各省样本数量汇总-->
+    <select id="getSampleByCountry" resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.GetSampleCountByAddressDTO">
+        SELECT province ,lat,lon,COUNT(*) count
+        FROM
+            rs_project_sample_#{projectId}
+        GROUP BY
+            province
+    </select>
+
+    <!--显示当前省份各市样本数量汇总-->
+    <select id="getSampleCountByProvince" resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.GetSampleCountByAddressDTO">
+        SELECT province , city ,lat,lon,COUNT(*) count
+        FROM
+        rs_project_sample_#{projectId}
+        WHERE
+        province = #{province}
+        GROUP BY
+        province , city
+    </select>
+
+    <!--显示当前市各区样本数量汇总-->
+    <select id="getSampleCountByCity" resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.GetSampleCountByAddressDTO">
+        SELECT province , city , district , lat, lon, COUNT(*) count
+        FROM
+            rs_project_sample_#{projectId}
+        WHERE  province = #{province}
+        AND city = #{city}
+        GROUP BY
+            province , city ,  district
+    </select>
+
+    <!--显示当前区样本位置-->
+    <select id="getSampleLocation" resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.GetSampleCountByAddressDTO">
+        SELECT lat, lon
+        FROM
+        rs_project_sample_#{projectId}
+        WHERE  province = #{province}
+        AND city = #{city}
+        AND district = #{district}
+    </select>
+    <!--获取仪表盘数据-->
+    <select id="getSampleDashboard" parameterType="integer"
+    resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.SampleDashboardDTO">
+        select  IFNULL(useCount/totalCount,0) useRate,
+                IFNULL(validCount/useCount,0) validRate,
+                IFNULL(successCount/useCount,0) successRate,
+                IFNULL(successCount/validCount,0) validSuccessRate,
+                IFNULL(refusedCount/useCount,0) refuseRate,
+                IFNULL(refusedCount/validCount,0) validRefuseRate,
+                IFNULL(auditCount/useCount,0) auditRate,
+                IFNULL(auditSuccessCount/auditCount,0) auditSuccessRate
+        from   (SELECT count(1) totalCount,
+                    SUM(CASE WHEN `status` > 0 THEN 1 ELSE 0 END) useCount,
+                    SUM(CASE WHEN `status` > 0 and `status` != 7 and `status` != 9 THEN 1 ELSE 0 END) validCount,
+                    SUM(CASE WHEN `status` = 3 OR `status` = 12 THEN 1 ELSE 0 END) successCount,
+                    SUM(CASE WHEN `status` = 4 THEN 1 ELSE 0 END) refusedCount,
+                    SUM(CASE WHEN `status` = 10 OR `status` = 11 OR `status` = 12 THEN 1 ELSE 0 END) auditCount,
+                    SUM(CASE WHEN `status` = 12 THEN 1 ELSE 0 END) auditSuccessCount
+                FROM rs_project_sample_#{projectId}
+                where is_delete=0 and if_virtual = 1
+         )result
+    </select>
+
+    <!--============================================ lu End =========================================-->
+    <select id="getAssignSampleGuids" resultType="string">
+            SELECT ps.sample_guid
+            FROM rs_project_sample_${projectId} ps
+            WHERE 1 = 1 AND ps.status = 0 AND ps.if_virtual = 1 AND ps.is_delete = 0
+            <if test="keyword != null and keyword != ''">
+                AND (ps.`name` LIKE CONCAT('%',#{keyword},'%') or
+                    ps.`code` LIKE CONCAT('%',#{keyword},'%') or
+                    ps.`address` LIKE CONCAT('%',#{keyword},'%') or
+                    ps.`email` LIKE CONCAT('%',#{keyword},'%') or
+                    ps.`phone` LIKE CONCAT('%',#{keyword},'%'))
+            </if>
+            <if test="null != sampleCondition and sampleCondition != ''">
+                 AND ${sampleCondition}
+            </if>
+    </select>
+</mapper>

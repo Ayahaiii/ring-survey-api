@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.UserDao">
+
+    <!-- 查询用户列表 -->
+    <select id="searchUser" parameterType="com.monetware.ringsurvey.business.pojo.vo.user.UserSearchVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.user.UserSearchDTO">
+        select
+        id,
+        <if test="type == 'name'">
+            name
+        </if>
+        <if test="type == 'telephone'">
+            name,
+            telephone
+        </if>
+        <if test="type == 'email'">
+            name,
+            email
+        </if>
+        from rs_user
+        where 1 = 1
+        <if test="type == 'name'">
+            and name = #{keyword}
+        </if>
+        <if test="type == 'telephone'">
+            and telephone = #{keyword}
+        </if>
+        <if test="type == 'email'">
+            and email = #{keyword}
+        </if>
+    </select>
+
+    <!--判断是否存在-->
+    <select id="checkUser" parameterType="com.monetware.ringsurvey.business.pojo.vo.team.TeamUserImportInfoVO"
+            resultType="java.lang.Integer">
+        select
+        id
+        from rs_user
+        where 1 = 1
+        <if test="userName != null and userName !=''">
+            and name = #{userName}
+        </if>
+        <if test="telephone != null and telephone !=''">
+            and telephone = #{telephone}
+        </if>
+        <if test="email != null and email !=''">
+            and email = #{email}
+        </if>
+    </select>
+
+    <!--用户列表-->
+    <select id="getUserList" parameterType="com.monetware.ringsurvey.business.pojo.vo.user.UserSelectVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.user.UserSelectDTO">
+        SELECT *
+        FROM rs_user
+        WHERE 1 = 1
+        <if test="name != null and name != ''">
+            and name like #{name}
+        </if>
+        <if test="phone != null and phone != ''">
+            and telephone like #{phone}
+        </if>
+        <if test="email != null and email != ''">
+            and email like #{email}
+        </if>
+    </select>
+
+
+</mapper>

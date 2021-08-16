@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectSampleStatusRecordDao">
+
+    <!-- 查询样本使用动态 -->
+    <select id="getSampleStatusUseList" parameterType="com.monetware.ringsurvey.business.pojo.vo.monitor.SampleStatusUseVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.SampleStatusUseDTO">
+        SELECT
+        `status`,
+        <if test="type == 1">
+            DATE_FORMAT(create_time,'%Y-%m-%d %H') timeStr,
+        </if>
+        <if test="type == 2">
+            DATE_FORMAT(create_time,'%Y-%m-%d') timeStr,
+        </if>
+        COUNT(1) totalCount
+        FROM rs_project_sample_status_record
+        WHERE project_id = #{projectId}
+        <if test="startTime != null">
+            AND create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND create_time &lt;= #{endTime}
+        </if>
+        GROUP BY `status`,
+        <if test="type == 1">
+            DATE_FORMAT(create_time,'%Y-%m-%d %H')
+        </if>
+        <if test="type == 2">
+            DATE_FORMAT(create_time,'%Y-%m-%d')
+        </if>
+    </select>
+
+
+    <!--============================================ lu Begin =======================================-->
+    <!--查询样本完成情况-->
+    <select id="getSampleCompleteList" resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.SampleCompleteDTO">
+        SELECT user_id interviewerId,user_name interviewerName,
+        <if test="type == 1">
+            DATE_FORMAT(result.create_time,'%Y-%m-%d %H') timeStr,
+        </if>
+        <if test="type == 2">
+            DATE_FORMAT(result.create_time,'%Y-%m-%d') timeStr,
+        </if>
+        COUNT(1) totalCount
+        FROM (
+        SELECT
+        sa.id,sa.sample_guid,sa.team_user_id,ssr.project_id,ssr.sg,ssr.status,ssr.create_time,tu.user_id,tu.user_name
+        FROM rs_project_sample_assignment_#{projectId} sa
+        right JOIN(
+        SELECT sample_guid sg ,project_id,status,create_time
+        FROM
+        rs_project_sample_status_record
+        WHERE id IN( SELECT max(id)
+                    FROM rs_project_sample_status_record
+                    WHERE project_id = #{projectId} AND `status` = 3
+                    GROUP BY sample_guid
+        )
+        <if test="startTime != null">
+            AND create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND create_time &lt;= #{endTime}
+        </if>
+        ) ssr on sa.sample_guid = ssr.sg
+        LEFT JOIN rs_project_team_user tu on tu.id = sa.team_user_id
+        WHERE 1=1
+        <if test="interviewerIdList !=null and interviewerIdList.size != 0">
+            and sa.team_user_id in
+            <foreach collection="interviewerIdList" item="id" separator="," open="(" close=")">
+                #{id}
+            </foreach>
+        </if>
+        ) result
+        GROUP BY result.user_id,
+        <if test="type == 1">
+            DATE_FORMAT(result.create_time,'%Y-%m-%d %H')
+        </if>
+        <if test="type == 2">
+            DATE_FORMAT(result.create_time,'%Y-%m-%d')
+        </if>
+    </select>
+
+    <!--获取指标动态-->
+    <select id="getIndexDynamic" resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.IndexDynamicDTO">
+        select  timeStr,
+                IFNULL(useCount/#{totalCount},0) useRate,
+                IFNULL(validCount/useCount,0) validRate,
+                IFNULL(successCount/useCount,0) successRate,
+                IFNULL(successCount/validCount,0) validSuccessRate,
+                IFNULL(refusedCount/useCount,0) refuseRate,
+                IFNULL(refusedCount/validCount,0) validRefuseRate,
+                IFNULL(auditCount/useCount,0) auditRate,
+                IFNULL(auditSuccessCount/auditCount,0) auditSuccessRate
+        from   (SELECT
+                    <if test="type == 1">
+                        DATE_FORMAT(rs_project_sample_status_record.create_time,'%Y-%m-%d %H') timeStr,
+                    </if>
+                    <if test="type == 2">
+                        DATE_FORMAT(rs_project_sample_status_record.create_time,'%Y-%m-%d') timeStr,
+                    </if>
+                    SUM(CASE WHEN `status` > 0 THEN 1 ELSE 0 END) useCount,
+                    SUM(CASE WHEN `status` > 0 and `status` != 7 and `status` != 9 THEN 1 ELSE 0 END) validCount,
+                    SUM(CASE WHEN `status` = 3 OR `status` = 12 THEN 1 ELSE 0 END) successCount,
+                    SUM(CASE WHEN `status` = 4 THEN 1 ELSE 0 END) refusedCount,
+                    SUM(CASE WHEN `status` = 10 OR `status` = 11 OR `status` = 12 THEN 1 ELSE 0 END) auditCount,
+                    SUM(CASE WHEN `status` = 12 THEN 1 ELSE 0 END) auditSuccessCount
+                FROM rs_project_sample_status_record
+                where project_id = #{projectId}
+                    <if test="startTime != null">
+                        AND create_time &gt;= #{startTime}
+                    </if>
+                    <if test="endTime != null">
+                        AND create_time &lt;= #{endTime}
+                    </if>
+                GROUP BY
+                <if test="type == 1">
+                    DATE_FORMAT(rs_project_sample_status_record.create_time,'%Y-%m-%d %H')
+                </if>
+                <if test="type == 2">
+                    DATE_FORMAT(rs_project_sample_status_record.create_time,'%Y-%m-%d')
+                </if>
+         )result
+
+    </select>
+
+    <!--============================================ lu End =========================================-->
+
+</mapper>

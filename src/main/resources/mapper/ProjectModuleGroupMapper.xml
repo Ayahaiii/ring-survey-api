@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectModuleGroupDao">
+
+    <select id="getProjectModuleGroupList" resultType="com.monetware.ringsurvey.business.pojo.dto.qnaire.ProjectModuleGroupDTO">
+        SELECT
+            rpmg.id,
+            rpmg.`name`,
+            rpmg.create_time createTime,
+            tu.user_name createUser
+        FROM rs_project_module_group rpmg
+        left join rs_project_team_user tu on rpmg.create_user = tu.user_id and tu.project_id = #{projectId}
+        WHERE rpmg.project_id = #{projectId}
+        ORDER BY rpmg.`name`
+    </select>
+
+    <insert id="insertModule2Group" parameterType="java.lang.Integer">
+        INSERT INTO rs_project_module_2_group (
+            project_id,
+            module_id,
+            group_id
+        )
+        VALUES (#{projectId}, #{moduleId}, #{groupId})
+    </insert>
+
+    <delete id="deleteModule2Group" parameterType="java.lang.Integer">
+        DELETE FROM rs_project_module_2_group WHERE project_id = #{projectId} AND group_id = #{groupId}
+    </delete>
+</mapper>

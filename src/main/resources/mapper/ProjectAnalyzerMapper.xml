@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectAnalyzerDao">
+
+
+    <!-- 获取单题统计结果 -->
+    <select id="getSingleStatisticsList" resultType="map"
+            parameterType="com.monetware.ringsurvey.business.pojo.vo.analyzer.AnalysisSingleSearchVO">
+        SELECT
+        ${findFields}
+        FROM rs_project_response_${projectId} r
+        LEFT JOIN rs_project_sample_${projectId} s ON r.sample_guid = s.sample_guid
+        WHERE 1 = 1 AND r.questionnaire_id = #{questionnaireId} AND r.is_delete = 0
+        AND r.response_status IN (6, 8, 9, 10)
+        <if test="checkRole != null and checkRole == 5">
+            AND r.sample_guid IN (
+            SELECT a.sample_guid from rs_project_sample_assignment_${projectId} a
+            LEFT JOIN rs_project_team_user tu ON a.team_user_id = tu.id
+            WHERE tu.user_id = #{userId}
+            )
+        </if>
+        <if test="answerCondition != null and answerCondition != ''">
+            AND ${answerCondition}
+        </if>
+        <if test="sampleCondition != null and sampleCondition != ''">
+            AND ${sampleCondition}
+        </if>
+    </select>
+
+    <!-- 获取交叉统计样本属性结果 -->
+    <select id="getInsectSampleProperty" resultType="map"
+            parameterType="com.monetware.ringsurvey.business.pojo.vo.analyzer.AnalysisInsectSearchVO">
+        SELECT DISTINCT
+        s.${sVariable} name
+        FROM rs_project_sample_${projectId} s
+        LEFT JOIN rs_project_response_${projectId} r ON r.sample_guid = s.sample_guid
+        WHERE 1 = 1 AND r.questionnaire_id = #{questionnaireId} AND r.is_delete = 0
+        AND r.response_status IN (6, 8, 9, 10)
+        <if test="checkRole != null and checkRole == 5">
+            AND r.sample_guid IN (
+            SELECT a.sample_guid from rs_project_sample_assignment_${projectId} a
+            LEFT JOIN rs_project_team_user tu ON a.team_user_id = tu.id
+            WHERE tu.user_id = #{userId}
+            )
+        </if>
+        <if test="answerCondition != null and answerCondition != ''">
+            AND ${answerCondition}
+        </if>
+        <if test="sampleCondition != null and sampleCondition != ''">
+            AND ${sampleCondition}
+        </if>
+    </select>
+
+    <select id="getInsectSamplesProperty" resultType="map"
+            parameterType="com.monetware.ringsurvey.business.pojo.vo.analyzer.AnalysisInsectSearchVO">
+        SELECT DISTINCT
+        IFNULL(s.${xVariable},'') ${xVariable},
+        IFNULL(s.${yVariable},'') ${yVariable},
+        count(*) as count
+        FROM rs_project_sample_${projectId} s
+        WHERE 1 = 1
+        AND s.sample_guid IN (
+            SELECT DISTINCT
+            sample_guid
+            FROM rs_project_response_${projectId}
+            WHERE questionnaire_id = #{questionnaireId}
+        )
+        <if test="checkRole != null and checkRole == 5">
+            AND r.sample_guid IN (
+            SELECT a.sample_guid from rs_project_sample_assignment_${projectId} a
+            LEFT JOIN rs_project_team_user tu ON a.team_user_id = tu.id
+            WHERE tu.user_id = #{userId}
+            )
+        </if>
+        <if test="sampleCondition != null and sampleCondition != ''">
+            AND ${sampleCondition}
+        </if>
+        group by ifnull(s.${xVariable}, ''), ifnull(s.${yVariable}, '');
+    </select>
+
+    <!-- 获取交叉统计结果 -->
+    <select id="getInsectQnaireStatisticsList" resultType="map"
+            parameterType="com.monetware.ringsurvey.business.pojo.vo.analyzer.AnalysisInsectSearchVO">
+        SELECT
+        IFNULL(s.${sVariable},'') name,
+        ${findFields}
+        FROM rs_project_response_${projectId} r
+        LEFT JOIN rs_project_sample_${projectId} s ON r.sample_guid = s.sample_guid
+        WHERE 1 = 1 AND r.questionnaire_id = #{questionnaireId} AND r.is_delete = 0
+        AND r.response_status IN (6, 8, 9, 10)
+        <if test="checkRole != null and checkRole == 5">
+            AND r.sample_guid IN (
+            SELECT a.sample_guid from rs_project_sample_assignment_${projectId} a
+            LEFT JOIN rs_project_team_user tu ON a.team_user_id = tu.id
+            WHERE tu.user_id = #{userId}
+            )
+        </if>
+        <if test="answerCondition != null and answerCondition != ''">
+            AND ${answerCondition}
+        </if>
+        <if test="sampleCondition != null and sampleCondition != ''">
+            AND ${sampleCondition}
+        </if>
+        GROUP BY s.${sVariable}
+    </select>
+
+    <!--问卷-问卷-->
+    <select id="getInsectQnaireAndQnaireStatisticsList" resultType="map"
+            parameterType="com.monetware.ringsurvey.business.pojo.vo.analyzer.AnalysisInsectSearchVO">
+        select
+        r.response_data->'$.${xVariable}' AS ${xVariable} ,
+        r.response_data->'$.${yVariable}' AS ${yVariable} ,
+        count(*) as statistics_count
+        FROM rs_project_response_${projectId} r
+        LEFT JOIN rs_project_sample_${projectId} s ON r.sample_guid = s.sample_guid
+        WHERE 1 = 1 AND r.questionnaire_id = #{questionnaireId} AND r.is_delete = 0
+        AND r.response_status IN (6, 8, 9, 10)
+        <if test="checkRole != null and checkRole == 5">
+            AND r.sample_guid IN (
+            SELECT a.sample_guid from rs_project_sample_assignment_${projectId} a
+            LEFT JOIN rs_project_team_user tu ON a.team_user_id = tu.id
+            WHERE tu.user_id = #{userId}
+            )
+        </if>
+        <if test="answerCondition != null and answerCondition != ''">
+            AND ${answerCondition}
+        </if>
+        <if test="sampleCondition != null and sampleCondition != ''">
+            AND ${sampleCondition}
+        </if>
+        group by r.response_data->'$.${xVariable}', r.response_data->'$.${yVariable}';
+    </select>
+
+
+    <!-- 获取打分统计样本结果 -->
+    <select id="getYbStatisticsScoreList" resultType="map"
+            parameterType="com.monetware.ringsurvey.business.pojo.vo.analyzer.AnalysisMarkVO">
+        SELECT
+        s.${variable} name,
+        count(1) count,
+        IFNULL(SUM(r.score),0) totalScore,
+        IFNULL(AVG(r.score),0.000) avgScore
+        FROM rs_project_response_${projectId} r
+        LEFT JOIN rs_project_sample_${projectId} s ON r.sample_guid = s.sample_guid
+        WHERE 1 = 1 AND r.questionnaire_id = #{questionnaireId} AND r.is_delete = 0
+        AND r.response_status IN (6, 8, 9, 10)
+        <if test="checkRole != null and checkRole == 5">
+          AND r.sample_guid IN (
+            SELECT a.sample_guid from rs_project_sample_assignment_${projectId} a
+            LEFT JOIN rs_project_team_user tu ON a.team_user_id = tu.id
+            WHERE tu.user_id = #{userId}
+          )
+        </if>
+        <if test="answerCondition != null and answerCondition != ''">
+            AND ${answerCondition}
+        </if>
+        <if test="sampleCondition != null and sampleCondition != ''">
+            AND ${sampleCondition}
+        </if>
+        GROUP BY s.${variable}
+    </select>
+
+    <!-- 获取打分统计问题结果 -->
+    <select id="getMkStatisticsScoreList" resultType="map"
+            parameterType="com.monetware.ringsurvey.business.pojo.vo.analyzer.AnalysisMarkVO">
+        SELECT
+        r.response_data responseData,
+        r.score
+        FROM rs_project_response_${projectId} r
+        LEFT JOIN rs_project_sample_${projectId} s ON r.sample_guid = s.sample_guid
+        WHERE 1 = 1 AND r.questionnaire_id = #{questionnaireId} AND r.response_type = 1 AND r.is_delete = 0
+        AND r.response_status IN (6, 8, 9, 10)
+        <if test="checkRole != null and checkRole == 5">
+            AND r.sample_guid IN (
+            SELECT a.sample_guid from rs_project_sample_assignment_${projectId} a
+            LEFT JOIN rs_project_team_user tu ON a.team_user_id = tu.id
+            WHERE tu.user_id = #{userId}
+            )
+        </if>
+        <if test="answerCondition != null and answerCondition != ''">
+            AND ${answerCondition}
+        </if>
+        <if test="sampleCondition != null and sampleCondition != ''">
+            AND ${sampleCondition}
+        </if>
+    </select>
+
+    <!-- 获取打分统计访问员结果 -->
+    <select id="getFyStatisticsScoreList" resultType="map"
+            parameterType="com.monetware.ringsurvey.business.pojo.vo.analyzer.AnalysisMarkVO">
+        SELECT
+        tu.${variable} name,
+        count(1) count,
+        SUM(r.score) totalScore,
+        AVG(r.score) avgScore
+        FROM rs_project_response_${projectId} r
+        LEFT JOIN rs_project_sample_${projectId} s ON r.sample_guid = s.sample_guid
+        LEFT JOIN rs_project_sample_assignment_${projectId} a ON s.sample_guid = a.sample_guid
+        LEFT JOIN rs_project_team_user tu ON a.team_user_id = tu.id
+        WHERE 1 = 1 AND a.type = 1 AND r.is_delete = 0 AND r.response_status IN (6, 8, 9, 10)
+        AND r.questionnaire_id = #{questionnaireId}
+        <if test="checkRole != null and checkRole == 5">
+            AND r.sample_guid IN (
+            SELECT a1.sample_guid from rs_project_sample_assignment_${projectId} a1
+            LEFT JOIN rs_project_team_user tu1 ON a1.team_user_id = tu1.id
+            WHERE tu1.user_id = #{userId}
+            )
+        </if>
+        <if test="answerCondition != null and answerCondition != ''">
+            AND ${answerCondition}
+        </if>
+        <if test="sampleCondition != null and sampleCondition != ''">
+            AND ${sampleCondition}
+        </if>
+        GROUP BY tu.${variable}
+    </select>
+
+</mapper>

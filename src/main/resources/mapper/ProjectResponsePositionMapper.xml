@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectResponsePositionDao">
+
+    <!--============================================ lu Begin =======================================-->
+
+    <!--获取地图报告-->
+    <select id="getMapReport" parameterType="com.monetware.ringsurvey.business.pojo.vo.monitor.GetMapReportVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.GetMapReportDTO">
+        SELECT
+                pos.response_guid responseGuid,
+                tu.`name` leaderName,
+                response.module_name moduleName ,
+                count(1) posCount
+        FROM
+                rs_project_response_position_#{projectId} pos
+        LEFT JOIN rs_project_response_#{projectId} response ON pos.response_guid = response.response_guid
+        LEFT JOIN rs_project_sample_assignment_#{projectId} assignment ON response.sample_guid = assignment.sample_guid
+        LEFT JOIN rs_project_team_user tu ON tu.id = assignment.team_user_id
+        LEFT join rs_user ru on ru.id = tu.user_id
+        WHERE response.is_delete = 0
+        and assignment.type = 1
+        <if test="userId != null and userId != ''">
+            and ru.id = #{userId}
+        </if>
+        GROUP BY
+                pos.response_guid ,
+                tu.`name` ,
+                response.module_name
+    </select>
+
+    <!--获取地图报告详细信息-->
+    <select id="getMapReportDetail" parameterType="com.monetware.ringsurvey.business.pojo.vo.monitor.GetMapReportDetailVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.GetMapReportDetailDTO">
+        SELECT
+            pos.response_guid ,
+            pos.longitude lon,
+            pos.latitude lat,
+            pos.address ,
+            pos.pos_time ,
+            tu.`name` ,
+            response.module_name moduleName
+        FROM
+                rs_project_response_position_#{projectId} pos
+        LEFT JOIN rs_project_response_#{projectId} response ON pos.response_guid = response.response_guid and response.response_guid = #{responseGuid}
+        LEFT JOIN rs_project_sample_assignment_#{projectId} assignment ON response.sample_guid = assignment.sample_guid
+        LEFT JOIN rs_project_team_user tu ON tu.id = assignment.team_user_id
+        WHERE response.response_guid = #{responseGuid}
+        and assignment.type = 1
+    </select>
+    <!--============================================ lu End =========================================-->
+</mapper>

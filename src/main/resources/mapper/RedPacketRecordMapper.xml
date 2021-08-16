@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.RedPacketRecordDao">
+
+    <select id="getRedPacketRecordList" parameterType="com.monetware.ringsurvey.business.pojo.vo.redpacket.RedPacketRecordListVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.redpacket.RedPacketRecordListDTO">
+        SELECT
+            record.id,
+            response.id responseId,
+            response.response_guid responseGuid,
+            sample.id sampleId,
+            sample.sample_guid sampleGuid,
+            sample.`name` sampleName,
+            sample.`code` sampleCode,
+            pm.id moduleId,
+            pm.`code` moduleCode,
+            pm.`name` moduleName,
+            response.questionnaire_id questionnaireId,
+            record.`status`,
+            record.open_id openId,
+            record.total_amount totalAmount,
+            record.create_time createTime,
+            record.audit_user auditUser,
+            record.audit_result auditResult,
+            record.audit_time auditTime
+        FROM
+            rs_project_redPacket_record_${projectId} record
+        LEFT JOIN rs_project_response_${projectId} response ON record.response_guid = response.response_guid
+        LEFT JOIN rs_project_sample_${projectId} sample ON response.sample_guid = sample.sample_guid
+        LEFT JOIN rs_project_module pm ON response.module_id = pm.id
+        WHERE 1 = 1
+        <if test="status != null and status != ''">
+            AND record.`status` = #{status}
+        </if>
+        Order BY record.create_time
+    </select>
+
+</mapper>

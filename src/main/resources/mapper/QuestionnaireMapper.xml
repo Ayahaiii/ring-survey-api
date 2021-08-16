@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.QuestionnaireDao">
+
+    <!-- 查询问卷列表 -->
+    <select id="getProjectQnaireList" parameterType="com.monetware.ringsurvey.business.pojo.vo.qnaire.QnaireSearchVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.qnaire.QnaireSearchDTO">
+        SELECT
+        id,
+        `name`,
+        label_text labelText
+        FROM rs_questionnaire
+        WHERE create_user = (SELECT create_user FROM rs_project WHERE id = #{projectId})
+        AND is_delete = 0
+        <if test="keyword != null and keyword !=''">
+            AND (`name` LIKE CONCAT("%", #{keyword},"%") OR label_text LIKE CONCAT("%", #{keyword},"%"))
+        </if>
+        ORDER BY last_modify_time DESC, create_time DESC
+    </select>
+
+    <!-- 我的问卷列表 -->
+    <select id="getMyQnaireList" parameterType="com.monetware.ringsurvey.business.pojo.vo.questionnaire.MyQnaireListVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.qnaire.MyQnaireListDTO">
+        SELECT
+            id,
+            `name`,
+            label_text labelText,
+            last_modify_time lastModifyTime,
+            create_time createTime,
+            is_library isLibrary
+        FROM rs_questionnaire
+        WHERE create_user = #{userId}
+        AND is_delete = 0
+        <if test="keyword != null and keyword !=''">
+            AND (`name` LIKE CONCAT("%", #{keyword},"%"))
+        </if>
+        <if test="labelText != null and labelText != ''">
+            AND (`label_text` LIKE CONCAT("%", #{labelText},"%"))
+        </if>
+        <if test="labelText == ''">
+            AND `label_text` = ''
+        </if>
+        ORDER BY last_modify_time DESC, create_time DESC
+    </select>
+
+    <!-- 我的问卷列表 -->
+    <select id="getMyQnaireListTest" parameterType="java.lang.Integer"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.qnaire.MyQnaireListDTO">
+        SELECT
+        id,
+        `name`,
+        label_text labelText,
+        last_modify_time lastModifyTime,
+        create_time createTime,
+        is_library isLibrary
+        FROM rs_questionnaire
+        WHERE create_user = #{userId}
+        AND is_delete = 0
+        ORDER BY last_modify_time DESC, create_time DESC
+    </select>
+
+    <!-- 我的问卷标签列表 -->
+    <select id="getMyQnaireLabelList" parameterType="java.lang.Integer" resultType="com.monetware.ringsurvey.business.pojo.dto.qnaire.MyQnaireLabelListDTO">
+        SELECT
+            label_text labelText,
+            COUNT(label_text) num
+        FROM rs_questionnaire
+        WHERE create_user = #{userId}
+        AND is_delete = 0
+        GROUP BY label_text
+    </select>
+
+
+</mapper>

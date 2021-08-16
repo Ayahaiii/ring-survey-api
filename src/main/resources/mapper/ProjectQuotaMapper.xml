@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectQuotaDao">
+
+    <!--配额列表-->
+    <select id="getProjectQuotaList" resultType="com.monetware.ringsurvey.business.pojo.dto.quota.ProjectQuotaDTO">
+        SELECT
+            quota.id,
+            quota.`name`,
+            quota.questionnaire_id,
+            quota.type,
+            quota.questionnaire_quota questionnaireQuota,
+            quota.sample_quota sampleQuota,
+            quota.current_quantity currentQuantity,
+            quota.upper_limit upperLimit,
+            quota.lower_limit lowerLimit,
+            quota.last_modify_time updateTime,
+            quota.`status`
+        FROM rs_project_quota quota
+        WHERE 1 = 1
+        AND quota.project_id = #{projectId}
+        <if test="keyword != null and keyword != ''">
+            AND quota.`name` LIKE CONCAT('%',#{keyword},'%')
+        </if>
+    </select>
+
+    <select id="getQuotaList" resultType="com.monetware.ringsurvey.business.pojo.po.BaseProjectQuota">
+        SELECT
+        *
+        FROM
+        rs_project_quota quota
+        WHERE
+        quota.project_id = #{projectId}
+        <if test="status != null">
+            AND quota.`status` = #{status}
+        </if>
+    </select>
+
+    <!--检验配额名称重复-->
+    <select id="checkQuotaExistByName" resultType="integer">
+        select count(1)
+        from rs_project_quota
+        where 1 = 1 and `name` = #{name} and project_id = #{projectId}
+        <if test="oldName != null and oldName !=''">
+        and `name` != #{oldName}
+        </if>
+    </select>
+
+    <!--获取问卷模块和样本属性-->
+    <select id="getModuleSample" resultType="com.monetware.ringsurvey.business.pojo.dto.quota.ModuleSampleDTO">
+        select
+        rpm.id moduleId,
+        rpm.name moduleName,
+        rpr.questionnaire_id,
+        rpr.questionnaire_name,
+        use_property sampleProperty
+        from rs_project_response_${projectId} rpr
+        left join rs_project_module rpm on rpr.module_id = rpm.id
+        left join rs_project_property rpp on rpp.project_id = rpm.project_id
+
+    </select>
+
+    <!--配额导出数据-->
+    <select id="exportQuota" resultType="com.monetware.ringsurvey.business.pojo.dto.quota.QuotaExportDTO">
+        select
+        rpqa.name,
+        rpqa.lower_limit,
+        rpqa.upper_limit,
+        rpqa.questionnaire_quota,
+        rpqa.sample_quota,
+        rpm.code
+        from rs_project_quota rpqa
+        left join rs_project_questionnaire rpqe on rpqa.questionnaire_id = rpqe.id
+        left join rs_project_module rpm on rpqe.module_id = rpm.id
+        where rpqa.id in
+        <foreach collection="quotaIds" separator="," item="item" open="(" close=")">
+            #{item}
+        </foreach>
+    </select>
+
+
+    <insert id="insertBatchByImport">
+        insert into rs_project_quota(project_id, name, type, questionnaire_quota, questionnaire_quota_survml, rule_survml_id, sample_quota, upper_limit, lower_limit, current_quantity, status, create_user, create_time, last_modify_user, last_modify_time)
+        values
+
+    </insert>
+</mapper>

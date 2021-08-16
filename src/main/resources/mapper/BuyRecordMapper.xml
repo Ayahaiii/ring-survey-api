@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.BuyRecordDao">
+
+    <select id="getBuyRecord"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.user.BuyRecordDTO">
+        SELECT
+        rb.pay_type,
+        rb.amount,
+        rb.create_time,
+        message,
+        out_trade_no
+        FROM rs_buy_record rb
+        LEFT JOIN rs_pay_order rp ON rb.pay_order_id = rp.id
+        WHERE rb.user_id = #{userId}
+        ORDER BY create_time desc
+    </select>
+
+    <select id="getBuyRecordTest" parameterType="java.lang.Integer"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.user.BuyRecordDTO">
+        SELECT
+            rb.pay_type,
+            rb.amount,
+            rb.create_time,
+            message,
+            out_trade_no
+        FROM rs_buy_record rb
+        LEFT JOIN rs_pay_order rp ON rb.pay_order_id = rp.id
+        WHERE rb.user_id = #{userId}
+        ORDER BY create_time DESC
+    </select>
+
+</mapper>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectSampleAssignDao">
+
+
+    <select id="getInterviewList" resultType="com.monetware.ringsurvey.business.pojo.dto.response.InterviewerDTO">
+       SELECT
+        DISTINCT rptu.id,
+        rptu.name
+        FROM
+        rs_project_sample_assignment_${projectId} s
+        LEFT JOIN rs_project_team_user rptu ON s.team_user_id = rptu.id
+        WHERE
+        s.type = 1
+    </select>
+
+    <!-- 批量删除分派 -->
+    <update id="deleteBySampleGuids">
+        UPDATE rs_project_sample_assignment_${projectId}
+        SET
+            is_delete = 1,
+            delete_time = NOW(),
+            delete_user = #{userId}
+        WHERE sample_guid IN
+        <foreach collection="list" item="item" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </update>
+
+
+</mapper>

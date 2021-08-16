@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.SampleBaseDao">
+
+    <select id="getSampleBaseList" resultType="com.monetware.ringsurvey.business.pojo.dto.samplebase.SampleBaseListDTO">
+        select
+        id,
+        name,
+        type,
+        create_time
+        from rs_sample_base rsb
+        where 1 = 1
+        <if test="searchType != null and searchType = 1">
+            AND rsb.`code` like CONCAT("%", #{keyword}, "%")
+        </if>
+        <if test="searchType != null and searchType = 2">
+            AND rsb.`name` like CONCAT("%", #{keyword},"%")
+        </if>
+    </select>
+
+</mapper>

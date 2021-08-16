@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.LibraryDao">
+
+    <select id="getLibraryList"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.library.LibraryListDTO">
+        SELECT
+        rql.id,
+        rql.price,
+        rql.description,
+        rql.`name`,
+        rql.image_url imageUrl,
+        rql.view_count viewCount,
+        rql.comment_count commentCount,
+        rql.star_count starCount,
+        (SELECT count(1) FROM rs_library_relation WHERE library_id = rql.id AND type = 1) buyCount,
+        rql.rate,
+        rql.status,
+        rql.if_free ifFree,
+        ru.`name` createUser
+        FROM rs_questionnaire_library rql
+        LEFT JOIN rs_user ru ON ru.id = rql.create_user
+        WHERE 1 = 1
+        <if test="all == 1">
+            AND rql.status = 2
+        </if>
+        <if test="star != null">
+            AND rql.id IN
+            (
+            SELECT library_id
+            FROM rs_library_relation rlr
+            WHERE rlr.type = 2 AND user_id = #{userId})
+        </if>
+        <if test="mine == 1">
+            AND rql.create_user = #{userId}
+        </if>
+        <if test="ifUser == 1 ">
+            AND rql.create_user = 1
+        </if>
+        <if test="ifUser == 2 ">
+            AND rql.create_user != 1 AND rql.status = 2
+        </if>
+        <if test="ifBuy == 1">
+            AND rql.id IN
+            (SELECT library_id
+            FROM rs_library_relation rlr
+            WHERE rlr.type = 1 AND user_id = #{userId})
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (rql.`name` like CONCAT("%", #{keyword}, "%"))
+        </if>
+        <if test="height != null">
+            AND rql.price &lt;= #{height}
+        </if>
+        <if test="low != null">
+            AND rql.price &gt;= #{low}
+        </if>
+        <if test="priceSort != null and priceSort == 'ascending'">
+            ORDER BY rql.price
+        </if>
+        <if test="priceSort != null and priceSort == 'descending'">
+            ORDER BY rql.price DESC
+        </if>
+        <if test="priceSort == null or priceSort == ''">
+            ORDER BY rql.view_count DESC, rql.comment_count DESC
+        </if>
+    </select>
+
+    <select id="getLibraryDetail" resultType="com.monetware.ringsurvey.business.pojo.dto.library.LibraryDetailDTO">
+      SELECT
+      rql.*,
+      ru.name createUserName,
+      (select count(id)
+       from rs_questionnaire_comments where user_id = #{userId} and library_id=#{id} and reply_id is null) ifComment,
+       (SELECT count(1) FROM rs_library_relation WHERE library_id = rql.id AND type = 1) buyCount,
+       (SELECT count(1) FROM rs_library_relation WHERE library_id = rql.id AND type = 2) starCount
+      FROM rs_questionnaire_library rql
+      LEFT JOIN rs_user ru ON rql.create_user = ru.id
+      WHERE  rql.id = #{id}
+   </select>
+
+    <select id="getMyShareList" resultType="com.monetware.ringsurvey.business.pojo.dto.library.QnaireShareDTO">
+        SELECT
+        rql.questionnaire_id id,
+        rql.name,
+        rql.view_count,
+        rql.sales,
+        rql.price,
+        rql.create_time,
+        SUM(CASE WHEN rlr.`type` = 2 THEN 1 ELSE 0 END) starCount,
+        SUM(rlr.profit) profit
+        FROM
+        rs_questionnaire_library rql
+        LEFT JOIN rs_library_relation rlr ON rql.id = rlr.library_id
+        WHERE 1 = 1 AND rql.create_user = #{userId} AND rql.status = 2
+        <if test="keyword != null and keyword != ''">
+            AND (rql.name like CONCAT("%", #{keyword}, "%"))
+        </if>
+        <if test="height != null">
+            AND rql.price &lt;= #{height}
+        </if>
+        <if test="low != null">
+            AND rql.price &gt;= #{low}
+        </if>
+        GROUP BY rql.id
+        <if test="priceSort == 'ascending'">
+            ORDER BY rql.price
+        </if>
+        <if test="priceSort == 'descending'">
+            ORDER BY rql.price DESC
+        </if>
+    </select>
+
+</mapper>

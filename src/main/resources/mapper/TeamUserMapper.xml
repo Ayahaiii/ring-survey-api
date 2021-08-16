@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectTeamUserDao">
+
+    <!-- 查询项目用户列表 -->
+    <select id="getTeamUserList" parameterType="com.monetware.ringsurvey.business.pojo.vo.team.TeamUserSearchVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.team.TeamUserDTO">
+            SELECT
+            tu.id,
+            tu.user_id userId,
+            tu.`name`,
+            tu.user_name userName,
+            tu.email,
+            tu.telephone,
+            (SELECT COUNT(1) FROM rs_project_sample_assignment_${projectId} WHERE team_user_id = tu.id) sampleNum,
+            GROUP_CONCAT(r.name) role,
+            tg.groupName groupName,
+            tu.sample_auth sampleAuth,
+            tu.auth_type authType,
+            tu.approve_time joinDate,
+            tu.auth_end_time validDate,
+            tu.`status`
+            FROM rs_project_team_user tu
+            LEFT JOIN rs_project_team_user_role ur ON ur.project_id = tu.project_id AND tu.user_id = ur.user_id
+            LEFT JOIN rs_role r ON r.id = ur.role_id
+            LEFT JOIN (
+            SELECT
+            utg.user_id,
+            GROUP_CONCAT(tg.name) groupName
+            FROM rs_project_team_user_to_group utg
+            LEFT JOIN rs_project_team_group tg ON utg.group_id = tg.id
+            WHERE utg.project_id = #{projectId}
+            GROUP BY utg.user_id) tg ON tg.user_id = tu.user_id
+            WHERE tu.project_id = #{projectId}
+            <if test="role != null and role !=''">
+                AND ur.role_id = #{role}
+            </if>
+            <if test="status != null">
+                AND tu.status = #{status}
+            </if>
+            <if test="sampleAuth != null">
+                AND tu.sample_auth = #{sampleAuth}
+            </if>
+            <if test="group != null and group != ''">
+                AND tg.groupName like CONCAT('%', #{group}, '%')
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (tu.name like CONCAT('%', #{keyword}, '%')
+                or tu.telephone like CONCAT('%', #{keyword}, '%')
+                or tu.email like CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="checkRole != null and checkRole &gt; 2">
+                AND (tu.user_id IN (
+                SELECT
+                g.user_id
+                FROM rs_project_team_user_to_group g
+                LEFT JOIN rs_project_team_user_to_group g1 ON g1.group_id = g.group_id
+                WHERE g1.project_id = #{projectId} AND g1.user_id = #{userId}) OR tu.user_id = #{userId})
+            </if>
+            GROUP BY tu.id
+            ORDER BY tu.`status`, tu.approve_time DESC
+    </select>
+
+    <!-- 查询项目用户列表 -->
+    <select id="getTeamUserListByIds" resultType="com.monetware.ringsurvey.business.pojo.dto.team.TeamUserDTO">
+        SELECT
+        tu.id,
+        tu.user_id userId,
+        tu.`name`,
+        tu.user_name userName,
+        tu.email,
+        tu.telephone,
+        (SELECT COUNT(1) FROM rs_project_sample_assignment_${projectId} WHERE team_user_id = tu.id) sampleNum,
+        GROUP_CONCAT(r.name) role,
+        tg.groupName groupName,
+        tu.sample_auth sampleAuth,
+        tu.auth_type authType,
+        tu.approve_time joinDate,
+        tu.auth_end_time validDate,
+        tu.`status`
+        FROM rs_project_team_user tu
+        LEFT JOIN rs_project_team_user_role ur ON ur.project_id = tu.project_id AND tu.user_id = ur.user_id
+        LEFT JOIN rs_role r ON r.id = ur.role_id
+        LEFT JOIN (
+        SELECT
+        utg.user_id,
+        GROUP_CONCAT(tg.name) groupName
+        FROM rs_project_team_user_to_group utg
+        LEFT JOIN rs_project_team_group tg ON utg.group_id = tg.id
+        WHERE utg.project_id = #{projectId}
+        GROUP BY utg.user_id) tg ON tg.user_id = tu.user_id
+        WHERE tu.project_id = #{projectId}
+        and tu.id in
+        <foreach collection="list" item="item" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        GROUP BY tu.id
+        ORDER BY tu.approve_time DESC
+    </select>
+
+    <!-- 查询项目组用户列表 -->
+    <select id="getTeamGroupUserList" parameterType="com.monetware.ringsurvey.business.pojo.vo.team.TeamGroupUserSearchVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.team.TeamGroupUserDTO">
+        SELECT
+        utg.id,
+        tu.name,
+        tu.email,
+        tu.telephone,
+        tu.status
+        FROM rs_project_team_user tu
+        LEFT JOIN rs_project_team_user_to_group utg ON utg.user_id = tu.user_id AND utg.project_id = #{projectId}
+        WHERE tu.project_id = #{projectId}
+        <if test="groupId != null">
+            AND utg.group_id = #{groupId}
+        </if>
+        GROUP BY utg.id
+    </select>
+
+    <!-- 获取团队用户信息 -->
+    <select id="getTeamUserInfo" parameterType="com.monetware.ringsurvey.business.pojo.vo.team.TeamUserInfoVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.team.TeamUserInfoDTO">
+        select
+        tu.id,
+        tu.user_id userId,
+        tu.user_name userName,
+        tu.name,
+        tu.email,
+        tu.telephone,
+        tu.sample_auth sampleAuth,
+        tu.auth_condition authCondition,
+        tu.auth_type,
+        tu.auth_end_time authDate
+        from rs_project_team_user tu
+        where tu.id = #{id}
+    </select>
+
+    <!-- 获取团队用户角色 -->
+    <select id="getTeamUserRole" parameterType="com.monetware.ringsurvey.business.pojo.vo.team.TeamUserInfoVO"
+            resultType="com.monetware.ringsurvey.business.pojo.po.BaseProjectTeamUserRole">
+        select
+        ur.*
+        from rs_project_team_user tu
+        left join rs_project_team_user_role ur on ur.user_id = tu.user_id and ur.project_id = #{projectId}
+        where tu.id = #{id}
+    </select>
+
+    <!-- 获取团队用户分组 -->
+    <select id="getTeamUserGroup" parameterType="com.monetware.ringsurvey.business.pojo.vo.team.TeamUserInfoVO"
+            resultType="com.monetware.ringsurvey.business.pojo.po.BaseProjectTeamUserToGroup">
+        select
+        ur.*
+        from rs_project_team_user tu
+        left join rs_project_team_user_to_group ur on ur.user_id = tu.user_id and ur.project_id = #{projectId}
+        where tu.id = #{id}
+    </select>
+
+    <!-- 判断组中是否有成员 -->
+    <select id="checkTeamUser" resultType="java.lang.Integer">
+        select count(1) from rs_project_team_user where project_id = #{projectId} and user_id = #{userId}
+    </select>
+
+    <!-- 获取团队成员信息 -->
+    <select id="getTeamUser" parameterType="java.lang.Integer" resultType="com.monetware.ringsurvey.business.pojo.po.BaseProjectTeamUser">
+        select * from rs_project_team_user where project_id = #{projectId} and user_id = #{userId}
+    </select>
+
+    <!-- 获取组对应的用户数量 -->
+    <select id="getTeamUserCount" resultType="com.monetware.ringsurvey.business.pojo.dto.team.TeamGroupUserCountDTO">
+        SELECT
+        g.id id,
+        COUNT(tg.group_id) count
+        FROM
+        rs_project_team_group g
+        LEFT JOIN rs_project_team_user_to_group tg ON tg.group_id = g.id
+        WHERE g.project_id = #{projectId}
+        GROUP BY g.id
+    </select>
+
+    <!-- 查询团队成员列表 -->
+    <select id="getTeamMemberList"
+            parameterType="com.monetware.ringsurvey.business.pojo.vo.sample.TeamMemberSearchVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.sample.TeamMemberDTO">
+        select
+        ptu.id id,
+		ptu.user_id userId,
+		GROUP_CONCAT(ur.role_id) roleId,
+        ptu.user_name memberName,
+        ptu.auth_condition authCondition
+        from rs_project_team_user ptu
+		left join rs_project_team_user_role ur ON ptu.user_id = ur.user_id AND ptu.project_id = ur.project_id
+        where 1 = 1
+        and ptu.status = 2
+        and ptu.project_id = #{projectId}
+        <if test="checkRole != null and checkRole == 4">
+            AND (ptu.user_id IN (
+            SELECT
+            g.user_id
+            FROM rs_project_team_user_to_group g
+            LEFT JOIN rs_project_team_user_to_group g1 ON g1.group_id = g.group_id
+            WHERE g1.project_id = #{projectId} AND g1.user_id = #{userId}) OR ptu.user_id = #{userId})
+        </if>
+        GROUP BY ptu.id
+    </select>
+
+    <!-- 获用户成员ID -->
+    <select id="getTeamUserId" resultType="java.lang.Integer">
+        select id from rs_project_team_user where project_id = #{projectId} and (name = #{userName} or telephone = #{userName} or email = #{userName})
+    </select>
+
+    <!--查询项目团队表里角色是访问员的团队用户id list-->
+    <select id="getInterviewerIdList" parameterType="integer" resultType="integer">
+        SELECT
+			tu.id
+		FROM
+			rs_project_team_user tu
+		LEFT JOIN rs_project_team_user_role tur ON tur.project_id = tu.project_id
+		AND tur.user_id = tu.user_id
+		WHERE tu. STATUS = 2
+		AND tu.project_id = #{projectId}
+		AND tur.role_id = 5
+        <if test="userId != null and userId != ''">
+            and tu.user_id = #{userId}
+        </if>
+    </select>
+
+    <!--查询项目团队表里角色是访问员的用户id和name list-->
+    <select id="getUserIdAndName" parameterType="integer"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.user.UserIdAndNameDTO">
+        SELECT
+        tu.user_id id ,tu.name
+        FROM
+        rs_project_team_user tu
+        LEFT JOIN rs_project_team_user_role tur ON tur.project_id = tu.project_id
+        AND tur.user_id = tu.user_id
+        WHERE tu. STATUS = 2
+        AND tu.project_id = #{projectId}
+        AND tur.role_id = 5
+        <if test="userId != null and userId != ''">
+            and tu.user_id = #{userId}
+        </if>
+    </select>
+
+</mapper>

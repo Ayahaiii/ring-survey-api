@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectResponseFileDao">
+
+
+    <select id="getResponseFileList" parameterType="com.monetware.ringsurvey.business.pojo.vo.response.ResponseFileListVO"
+            resultType="com.monetware.ringsurvey.business.pojo.po.BaseResponseFile">
+        SELECT
+            file.*
+        FROM rs_project_response_#{projectId} response
+        LEFT JOIN rs_project_sample_#{projectId} sample ON response.sample_guid = sample.sample_guid
+        LEFT JOIN rs_project_sample_assignment_#{projectId} rpsa
+            ON (sample.sample_guid = rpsa.sample_guid AND rpsa.type = 1 AND rpsa.is_delete = 0)
+        LEFT JOIN rs_project_response_file_#{projectId} file ON response.response_guid = file.response_guid
+        LEFT JOIN rs_project_team_user tu ON (rpsa.team_user_id = tu.id AND tu.project_id = #{projectId})
+        WHERE 1 = 1
+        <if test="responseGuid != null and responseGuid != ''">
+            AND file.response_guid = #{responseGuid}
+        </if>
+        <if test="type != null">
+            AND file.file_type = #{type}
+        </if>
+        <if test="keyword != null and keyword != '' ">
+            AND file.file_name LIKE CONCAT('%',#{keyword},'%')
+        </if>
+        <if test="checkRole != null and (checkRole == 5 or checkRole == 4)">
+            AND tu.user_id = #{userId}
+        </if>
+
+    </select>
+</mapper>

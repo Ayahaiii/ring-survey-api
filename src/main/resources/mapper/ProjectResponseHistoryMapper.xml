@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectResponseHistoryDao">
+
+    <select id="getResponseHistoryList" resultType="com.monetware.ringsurvey.business.pojo.dto.response.ResponseHistoryListDTO">
+        select
+        rpm.code,
+        module_name,
+        start_time,
+        end_time,
+        response_duration,
+        response_status,
+        rptu.user_name interviewer,
+        s.*
+        from rs_project_response_history_${projectId} rprh
+        left join rs_project_sample_${projectId} s on s.sample_guid = rprh.sample_guid
+		left join rs_project_module rpm on rprh.module_id = rpm.id
+		left join rs_project_sample_assignment_${projectId} rpsa on rpsa.sample_guid = rprh.sample_guid and rpsa.type = 1
+		left join rs_project_team_user rptu on rpsa.team_user_id = rptu.id
+		where rprh.response_guid = #{responseGuid}
+        <if test="interviewerId != null and interviewerId != '' ">
+            and rpsa.team_user_id = #{interviewerId}
+        </if>
+        <if test="responseStatus != null and responseStatus != ''">
+            and rprh.response_status = #{responseStatus}
+        </if>
+        <if test="startTime != null and startTime != ''">
+            and rprh.start_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null and endTime != ''">
+            and rprh.end_time &lt;= #{endTime}
+        </if>
+    </select>
+
+
+
+</mapper>

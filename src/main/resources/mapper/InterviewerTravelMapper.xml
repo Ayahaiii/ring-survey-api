@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.InterviewerTravelDao">
+
+    <!-- 获取单个访员所有轨迹列表 -->
+    <select id="getInterviewerTravelList" parameterType="com.monetware.ringsurvey.business.pojo.vo.sample.InterviewerTravelVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.sample.InterviewerTravelDTO">
+        SELECT
+            rpit.user_id userId,
+            ru.`name` userName,
+            rpit.lon,
+            rpit.lat,
+            rpit.address,
+            rpit.create_time createTime
+        FROM rs_project_interviewer_travel_#{projectId} rpit
+        LEFT JOIN rs_user ru ON rpit.user_id = ru.id
+        WHERE 1 = 1
+        AND rpit.user_id = #{interviewerId}
+        GROUP BY rpit.lon, rpit.lat
+        ORDER BY rpit.create_time
+    </select>
+
+    <select id="getInterviewersLastedTravel" parameterType="com.monetware.ringsurvey.business.pojo.vo.sample.InterviewerTravelVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.sample.InterviewerTravelDTO">
+        SELECT
+            rpit.user_id userId,
+            ru.`name` userName,
+            rpit.lon,
+            rpit.lat,
+            rpit.address,
+            rpit.create_time createTime
+        FROM
+            rs_project_interviewer_travel_#{projectId} rpit
+        LEFT JOIN rs_user ru ON rpit.user_id = ru.id
+        WHERE 1 = 1
+        GROUP BY rpit.user_id
+        HAVING max(rpit.create_time)
+    </select>
+
+</mapper>

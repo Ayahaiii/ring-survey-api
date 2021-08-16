@@ -1,0 +1,481 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.monetware.ringsurvey.business.dao.ProjectResponseDao">
+
+    <!-- 获取答卷进度数据 -->
+    <select id="getAnswerProcessData" resultType="Map"
+            parameterType="com.monetware.ringsurvey.business.pojo.vo.monitor.AnswerProcessVO">
+        SELECT
+        DATE_FORMAT(r.create_time,'%Y-%m-%d') yearDay,
+        COUNT(1) totalCount
+        FROM rs_project_response_${projectId} r
+        <if test="checkRole != null and checkRole &gt; 2">
+            LEFT JOIN rs_project_sample_assignment_${projectId} a ON r.sample_guid = a.sample_guid
+            LEFT JOIN rs_project_team_user tu ON a.team_user_id = tu.id
+        </if>
+        WHERE 1 = 1 AND r.response_status IN (6, 8, 9, 10)
+        AND DATE_FORMAT(r.create_time,'%Y-%m-%d') &gt;= #{startTime}
+        AND DATE_FORMAT(r.create_time,'%Y-%m-%d') &lt;= #{endTime}
+        <if test="checkRole != null and checkRole &gt; 2">
+            AND tu.user_id = #{userId}
+        </if>
+        GROUP BY DATE_FORMAT(r.create_time,'%Y-%m-%d');
+    </select>
+
+    <!-- 获取答卷进度图表数据 -->
+    <select id="getAnswerTimeData" resultType="Map">
+        SELECT
+        COUNT(1) totalCount,
+        <if test="type == 1">
+            DATE_FORMAT(create_time,'%Y-%m-%d %H') timeStr
+        </if>
+        <if test="type == 2">
+            DATE_FORMAT(create_time,'%Y-%m-%d') timeStr
+        </if>
+        FROM rs_project_response_${projectId}
+        WHERE 1 = 1 AND response_status IN (6, 8, 9, 10)
+        <if test="qnaireId != null">
+            AND questionnaire_id = #{qnaireId}
+        </if>
+        <if test="startTime != null">
+            AND create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND create_time &lt;= #{endTime}
+        </if>
+        GROUP BY
+        <if test="type == 1">
+            DATE_FORMAT(create_time,'%Y-%m-%d %H')
+        </if>
+        <if test="type == 2">
+            DATE_FORMAT(create_time,'%Y-%m-%d')
+        </if>
+    </select>
+
+    <!-- 获取样本答卷经纬度 -->
+    <select id="getSampleLonAndLatData" resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.AnswerLonALatDTO">
+        SELECT s.id,
+        s.`name` sampeName,
+		s.`code` sampleCode,
+        s.lon,
+        s.lat
+        FROM rs_project_response_${projectId} r
+        LEFT JOIN rs_project_sample_${projectId} s ON r.sample_guid = s.sample_guid
+        ORDER BY r.create_time DESC
+        LIMIT 100
+    </select>
+
+    <!--答卷列表-->
+    <select id="getResponseList" resultType="com.monetware.ringsurvey.business.pojo.dto.response.ResponseListDTO" parameterType="com.monetware.ringsurvey.business.pojo.vo.response.ResponseListVO">
+        select
+        r.id responseId,
+        r.response_identifier,
+        r.response_guid,
+        r.start_time,
+        r.end_time,
+        r.last_modify_time rLastModifyTime,
+        r.response_status,
+        r.sampling_status,
+        r.response_duration duration,
+        s.id sampleId,
+        rpm.`name` moduleName,
+        rpm.code qnaireCode,
+        rpq.id questionnaireId,
+        rpra.audit_time,
+        ru.name auditor,
+        rptu.name interviewer,
+        sum(case when rpra.audit_result != 3 then 1 else 0 end ) auditTimes,
+        DATE_FORMAT(s.last_modify_time,'%Y-%m-%d %H:%i:%s') lastModifyTime,
+        s.*,
+        IFNULL( r.submit_data -> '$.var_dict.__sys_completion_rate','') completion_rate
+        from rs_project_response_${projectId} r
+        left join rs_project_sample_${projectId} s on r.sample_guid = s.sample_guid
+        left join rs_project_questionnaire rpq on r.questionnaire_id = rpq.id
+        left join rs_project_module rpm on r.module_id = rpm.id
+        left join rs_project_response_audit_${projectId} rpra on rpra.response_guid = r.response_guid
+        left join rs_project_sample_assignment_${projectId} rpsa on r.sample_guid = rpsa.sample_guid and rpsa.type = 1
+        left join rs_project_team_user rptu on rpsa.team_user_id = rptu.id
+        left join rs_user ru on rpra.audit_user = ru.id
+        left join rs_project_property rpp on rpp.project_id = rpq.project_id
+        where 1 = 1 and r.is_delete = 0 and r.response_status != 0
+        <if test="responseMark !=null and responseMark != ''">
+            and r.response_identifier = #{responseMark}
+        </if>
+        <if test="interviewerId != null and interviewerId != ''">
+            and rpsa.team_user_id = #{interviewerId}
+        </if>
+        <if test="questionnaireId != null and  questionnaireId != ''">
+            and r.questionnaire_id = #{questionnaireId}
+        </if>
+        <if test="auditor != null and auditor != '' ">
+            and ru.name = #{auditor}
+        </if>
+        <if test="modifyStartTime != null and modifyStartTime != ''">
+            and r.start_time &gt;= #{modifyStartTime}
+        </if>
+        <if test="modifyEndTime != null and modifyEndTime !=''">
+            and r.end_time &lt;= #{modifyEndTime}
+        </if>
+        <if test="endBeginTime != null and endBeginTime != ''">
+            and r.end_time &gt;= #{endBeginTime}
+        </if>
+        <if test="endEndTime != null and endEndTime !=''">
+            and r.end_time &lt;= #{endEndTime}
+        </if>
+        <if test="beginModifyTime != null and beginModifyTime != ''">
+            and r.last_modify_time &gt;= #{beginModifyTime}
+        </if>
+        <if test="endModifyTime != null and endModifyTime !=''">
+            and r.last_modify_time &lt;= #{endModifyTime}
+        </if>
+        <if test="auditStartTime != null and auditStartTime != ''">
+            and r.audit_time &gt;= #{auditStartTime}
+        </if>
+        <if test="auditEndTime != null and auditEndTime != ''">
+            and r.audit_time &lt;= #{auditEndTime}
+        </if>
+        <if test="samplingStatus != null and samplingStatus != ''">
+            and r.sampling_status = #{samplingStatus}
+        </if>
+        <if test="responseStatus != null and responseStatus != ''">
+            and r.response_status = #{responseStatus}
+        </if>
+        <if test="answerCondition != null and answerCondition != ''">
+            AND ${answerCondition}
+        </if>
+        <if test="sampleCondition != null and sampleCondition != ''">
+            AND ${sampleCondition}
+        </if>
+<!--        <if test="keyword != null and keyword != '' ">-->
+<!--            and (rpp.mark_property LIKE CONCAT('%',#{keyword},'%') or r.response_identifier LIKE CONCAT('%',#{keyword},'%'))-->
+<!--        </if>-->
+        <if test="checkRole != null and checkRole == 4">
+            AND (rptu.user_id IN (
+            SELECT
+            g.user_id
+            FROM rs_project_team_user_to_group g
+            LEFT JOIN rs_project_team_user_to_group g1 ON g1.group_id = g.group_id
+            WHERE g1.project_id = #{projectId} AND g1.user_id = #{userId}) OR rptu.user_id = #{userId})
+        </if>
+        <if test="checkRole != null and  checkRole == 5">
+            and rptu.user_id = #{userId}
+        </if>
+        <if test="checkRole != null and  checkRole == 3">
+            and s.id in ( SELECT ps.id
+            FROM rs_project_sample_${projectId} ps
+            LEFT JOIN rs_project_sample_assignment_${projectId} sa ON ps.sample_guid = sa.sample_guid
+            AND sa.type = 2
+            LEFT JOIN rs_project_team_user tu ON sa.team_user_id = tu.id
+            AND tu.project_id = #{projectId}
+            LEFT JOIN rs_user ru ON tu.user_id = ru.id where tu.user_id = #{userId})
+        </if>
+        group by r.id
+        order by r.end_time desc
+    </select>
+
+    <!--答卷页面的搜索条件-->
+    <select id="getSearchInfo" resultType="com.monetware.ringsurvey.business.pojo.dto.response.SearchInfoDTO">
+        select
+        DISTINCT rpq.id questionnaireId,
+        rpm.name questionnaireName,
+        rpq.version,
+        rptu.user_id auditUserId,
+		rptu.user_name auditUserName
+        from rs_project_questionnaire rpq
+        left join rs_project_module rpm on rpq.module_id = rpm.id
+		left join rs_project_response_${projectId} rpr on rpr.questionnaire_id = rpq.id
+		left join rs_project_team_user rptu on rpr.audit_user = rptu.user_id
+        where rpq.project_id = #{projectId} and rpq.is_delete = 0 and rpm.is_delete = 0
+    </select>
+
+
+    <!-- 审核抽样-->
+    <update id="updateResponseSampling">
+        update rs_project_response_${projectId} rpr
+        set sampling_status = 1
+        where rpr.sampling_status = 0 and rpr.response_status = 6 and rpr.is_delete = 0
+        order by rand() limit #{samplingCount}
+    </update>
+
+    <!--重置抽审-->
+    <update id="updateResponseInit">
+        update rs_project_response_${projectId}
+        set sampling_status = 0
+    </update>
+
+
+    <!--答卷信息-->
+    <select id="getResponseAuditInfo" resultType="com.monetware.ringsurvey.business.pojo.dto.response.ResponseAuditInfoDTO">
+        select
+        distinct rpr.id,
+        rpr.response_type,
+        rpr.response_status,
+        rpr.start_time,
+        rpr.end_time,
+        rpr.response_duration,
+        rpr.audit_result,
+        rpr.sample_guid,
+        rpr.ip_province,
+        rpr.questionnaire_id,
+        rpr.version,
+        rpm.name,
+        ptu.user_name interviewerName,
+        (select if_virtual from rs_project_sample_${projectId} where id = ${sampleId}) ifVirtual,
+        (SELECT COUNT(1) FROM rs_project_response_audit_${projectId} WHERE audit_result != 3 and response_guid = rpr.response_guid) auditTimes
+        from
+        rs_project_response_${projectId} rpr
+        left join rs_project_module rpm on rpr.module_id = rpm.id
+        left join rs_project_sample_assignment_${projectId} rpsa on rpr.sample_guid = rpsa.sample_guid and rpsa.type = 1
+        left join rs_project_response_audit_${projectId} rpra on rpr.response_guid = rpra.response_guid
+        left join rs_project_team_user ptu on ptu.id = rpsa.team_user_id
+        where rpr.id = #{responseId}
+    </select>
+
+    <!--审核日志-->
+    <select id="getResponseAuditLogs" resultType="com.monetware.ringsurvey.business.pojo.dto.response.ResponseAuditLogDTO">
+        select
+        ru.name auditor,
+        rpra.audit_time,
+        rpra.audit_result,
+        rpra.audit_score,
+        rpra.audit_comments
+        from rs_project_response_audit_${projectId} rpra
+        left join rs_user ru on rpra.audit_user = ru.id
+        where rpra.response_guid = #{responseGuid}
+    </select>
+
+    <!-- 答卷导出检索条件查询 -->
+    <select id="getExportResponseList" parameterType="com.monetware.ringsurvey.business.pojo.vo.response.ResponseExportSearchVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.response.ResponseExportSelectDTO">
+        SELECT
+            s.*, rptu.user_name userName,
+            rptu.telephone userPhone,
+            rptu.email userEmail,
+            r.id responseId,
+            r.questionnaire_id questionnaireId,
+            r.response_type responseType,
+            r.response_status responseStatus,
+            r.response_data responseData,
+            r.submit_data submitData,
+            r.question_data questionData,
+            r.start_time startTime,
+            r.end_time endTime,
+            r.response_duration responseLen,
+            ru.`name` auditUserName,
+            r.audit_result auditResult,
+            r.audit_score auditScore,
+            r.audit_time auditTime,
+            r.audit_comments auditDesc,
+            r.audit_notes auditNote
+        FROM
+            rs_project_response_#{projectId} r
+        LEFT JOIN rs_project_sample_#{projectId} s ON r.sample_guid = s.sample_guid
+        LEFT JOIN rs_project_sample_assignment_#{projectId} rpsa ON r.sample_guid = rpsa.sample_guid AND rpsa.type = 1 AND rpsa.is_delete = 0
+        LEFT JOIN rs_project_team_user rptu ON rpsa.team_user_id = rptu.id
+        LEFT JOIN rs_user ru ON r.audit_user = ru.id
+        WHERE
+        1 = 1
+        <if test="responseType != null and responseType != ''">
+            AND r.response_type = #{responseType}
+        </if>
+        <if test="responseStatus != null and responseStatus != ''">
+            AND r.response_status = #{responseStatus}
+        </if>
+        <if test="questionnaireId != null and questionnaireId != ''">
+            and r.questionnaire_id = #{questionnaireId}
+        </if>
+        <if test="modifyStartTime != null and modifyStartTime != ''">
+            and r.start_time &gt;= #{modifyStartTime}
+        </if>
+        <if test="modifyEndTime != null and modifyEndTime !=''">
+            and r.end_time &lt;= #{modifyEndTime}
+        </if>
+        <if test="endBeginTime != null and endBeginTime != ''">
+            and r.end_time &gt;= #{endBeginTime}
+        </if>
+        <if test="endEndTime != null and endEndTime !=''">
+            and r.end_time &lt;= #{endEndTime}
+        </if>
+        <if test="beginModifyTime != null and beginModifyTime != ''">
+            and r.last_modify_time &gt;= #{beginModifyTime}
+        </if>
+        <if test="endModifyTime != null and endModifyTime !=''">
+            and r.last_modify_time &lt;= #{endModifyTime}
+        </if>
+        <if test="auditStartTime != null and auditStartTime !=''">
+            AND r.audit_time &gt;= #{auditStartTime}
+        </if>
+        <if test="auditEndTime != null and auditEndTime !=''">
+            AND r.audit_time &lt;= #{auditEndTime}
+        </if>
+        <if test="sampleStatus != null and sampleStatus !=''">
+            AND s.`status` = #{sampleStatus}
+        </if>
+        <if test="auditor != null and auditor != ''">
+            AND rptu2.`user_name` LIKE CONCAT('%',#{auditor},'%')
+        </if>
+        <if test="interviewerId != null and interviewerId != ''">
+            AND rpsa.team_user_id = #{interviewerId}
+        </if>
+    </select>
+
+    <!-- 答卷导出检索条件查询 -->
+    <select id="getExportResponseListByIds" resultType="com.monetware.ringsurvey.business.pojo.dto.response.ResponseExportSelectDTO">
+        SELECT
+            s.*, rptu.user_name userName,
+            rptu.telephone userPhone,
+            rptu.email userEmail,
+            r.id responseId,
+            r.questionnaire_id questionnaireId,
+            r.response_type responseType,
+            r.response_status responseStatus,
+            r.response_data responseData,
+            r.submit_data submitData,
+            r.question_data questionData,
+            r.start_time startTime,
+            r.end_time endTime,
+            r.response_duration responseLen,
+            ru.`name` auditUserName,
+            r.audit_result auditResult,
+            r.audit_score auditScore,
+            r.audit_time auditTime,
+            r.audit_comments auditDesc,
+            r.audit_notes auditNote
+        FROM
+            rs_project_response_#{projectId} r
+        LEFT JOIN rs_project_sample_#{projectId} s ON r.sample_guid = s.sample_guid
+        LEFT JOIN rs_project_sample_assignment_#{projectId} rpsa ON r.sample_guid = rpsa.sample_guid AND rpsa.type = 1
+        LEFT JOIN rs_project_team_user rptu ON rpsa.team_user_id = rptu.id
+        LEFT JOIN rs_user ru ON r.audit_user = ru.id
+        WHERE
+        1 = 1
+        and r.id in
+        <foreach collection="list" item="item" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </select>
+
+    <!-- 样本答卷批量删除 -->
+    <update id="deleteBySampleGuids">
+        UPDATE rs_project_response_${projectId}
+        SET
+            is_delete = 1,
+            delete_time = NOW(),
+            delete_user = #{userId}
+        WHERE sample_guid IN
+        <foreach collection="list" item="item" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </update>
+
+    <!--============================================ lu Begin =======================================-->
+    <!-- 获取地图坐标信息(前100) -->
+    <select id="getResponseLocation" parameterType="integer"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.ResponseLocationDTO">
+        SELECT
+            count(id) count,lon,lat
+        FROM
+            (
+                SELECT
+                    s.lon ,
+                    s.lat ,
+                    s.id
+                FROM
+                    rs_project_response_#{projectId} r
+                LEFT JOIN rs_project_sample_#{projectId} s ON r.sample_guid = s.sample_guid
+                ORDER BY
+                    r.create_time DESC
+                LIMIT 100
+        )result
+        group by id;
+    </select>
+
+    <!--获取来源报告-->
+    <select id="getSourceReport" parameterType="integer"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.GetSourceReportDTO">
+        SELECT count(id) count,ip_province province
+        FROM
+            rs_project_response_#{projectId}
+        GROUP BY ip_province
+        order by count desc
+    </select>
+    <!--获取答卷list-->
+    <select id="getQuestionnaireList" parameterType="integer" resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.GetQuestionnaireListDTO">
+        SELECT
+            pm.`name` ,
+            pq.id qnaireId
+        FROM
+            rs_project_module pm
+        LEFT JOIN rs_project_questionnaire pq ON pq.module_id = pm.id
+        AND pm.max_version = pq.version
+        WHERE
+            pm.is_delete = 0
+        AND pq.is_delete = 0
+        AND pm.project_id = #{projectId}
+    </select>
+
+    <!--获取浏览器参数报告-->
+    <select id="getBrowserParam" parameterType="com.monetware.ringsurvey.business.pojo.vo.monitor.GetBrowserParamVO"
+    resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.GetBrowserParamDTO">
+        SELECT
+            explorer_type explorerType,count(0) count
+        FROM
+            rs_project_response_#{projectId}
+        WHERE
+            is_delete = 0 and response_type = 1
+        GROUP BY
+            explorer_type
+    </select>
+
+    <!--Chrome的版本分布-->
+    <select id="getChromeVersionParam" parameterType="com.monetware.ringsurvey.business.pojo.vo.monitor.GetBrowserParamVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.GetBrowserParamDTO">
+       SELECT
+          explorer_version explorerVersion,count(0) count
+       FROM
+          rs_project_response_#{projectId}
+       WHERE
+          explorer_type = "chrome"
+       AND is_delete = 0 AND response_type = 1
+       group by explorer_version
+    </select>
+
+    <!--QQ浏览器的版本分布-->
+    <select id="getQqVersionParam" parameterType="com.monetware.ringsurvey.business.pojo.vo.monitor.GetBrowserParamVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.GetBrowserParamDTO">
+        SELECT
+           explorer_version explorerVersion,count(0) count
+        FROM
+           rs_project_response_#{projectId}
+        WHERE
+           explorer_type = "qqbrowser"
+        AND is_delete = 0 AND response_type = 1
+        group by explorer_version
+    </select>
+
+    <!--Safari的版本分布-->
+    <select id="getSafariVersionParam" parameterType="com.monetware.ringsurvey.business.pojo.vo.monitor.GetBrowserParamVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.GetBrowserParamDTO">
+        SELECT
+           explorer_version explorerVersion,count(0) count
+        FROM
+           rs_project_response_#{projectId}
+        WHERE
+           explorer_type = "safari"
+        AND is_delete = 0 AND response_type = 1
+        group by explorer_version
+    </select>
+
+    <!--浏览器类型加浏览器版本统计数量-->
+    <select id="getCountWithTypeAndVersion" parameterType="com.monetware.ringsurvey.business.pojo.vo.monitor.GetBrowserParamVO"
+            resultType="com.monetware.ringsurvey.business.pojo.dto.monitor.GetBrowserParamDTO">
+        SELECT explorer_type explorerType,
+           explorer_version explorerVersion,count(0) count
+        FROM
+           rs_project_response_#{projectId}
+        WHERE is_delete = 0 AND response_type = 1
+        group by  explorer_type,explorer_version
+    </select>
+ <!--============================================ lu End =========================================-->
+
+</mapper>
